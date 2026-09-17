@@ -1881,6 +1881,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "arxiv" },
     { name = "fal-client" },
+    { name = "groq" },
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "langchain-community" },
@@ -1901,6 +1902,7 @@ dependencies = [
 requires-dist = [
     { name = "arxiv", specifier = ">=4.0.1" },
     { name = "fal-client", specifier = ">=1.0.1" },
+    { name = "groq", specifier = ">=0.37.1" },
     { name = "ipykernel", specifier = ">=7.3.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "langchain-community", specifier = ">=0.4.2" },
