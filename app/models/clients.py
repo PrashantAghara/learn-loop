@@ -1,10 +1,18 @@
 from functools import lru_cache
 
+from groq import Groq
 from langchain_groq import ChatGroq
 from mem0 import MemoryClient
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import get_settings
+
+
+@lru_cache
+def get_groq_client() -> Groq:
+    """Singleton raw Groq SDK client, for audio (STT/TTS) endpoints not exposed via ChatGroq."""
+    settings = get_settings()
+    return Groq(api_key=settings.groq_api_key)
 
 
 @lru_cache
