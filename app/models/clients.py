@@ -4,6 +4,7 @@ from groq import Groq
 from langchain_groq import ChatGroq
 from mem0 import MemoryClient
 from sentence_transformers import SentenceTransformer
+from supabase import create_client
 
 from app.core.config import get_settings
 
@@ -35,3 +36,10 @@ def get_embedder() -> SentenceTransformer:
 def get_mem0_client() -> MemoryClient:
     settings = get_settings()
     return MemoryClient(api_key=settings.mem0_api_key)
+
+
+@lru_cache
+def get_supabase_client():
+    """Singleton Supabase client — reused across requests to preserve PKCE code_verifier in memory storage."""
+    settings = get_settings()
+    return create_client(settings.supabase_url, settings.supabase_publishable_key)

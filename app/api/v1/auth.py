@@ -1,16 +1,14 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from fastapi.responses import RedirectResponse
-from supabase import create_client
 
 from app.core.config import get_settings
+from app.models.clients import get_supabase_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/login/google")
-def login_google():
-    settings = get_settings()
-    supabase = create_client(settings.supabase_url, settings.supabase_publishable_key)
+def login_google(supabase=Depends(get_supabase_client)):
     result = supabase.auth.sign_in_with_oauth(
         {
             "provider": "google",
@@ -21,9 +19,7 @@ def login_google():
 
 
 @router.get("/callback")
-def auth_callback(code: str = Query(...)):
-    settings = get_settings()
-    supabase = create_client(settings.supabase_url, settings.supabase_publishable_key)
+def auth_callback(code: str = Query(...), supabase=Depends(get_supabase_client)):
     session = supabase.auth.exchange_code_for_session({"auth_code": code})
     return {
         "access_token": session.session.access_token,
