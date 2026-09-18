@@ -1,6 +1,7 @@
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 
 from app.core.config import get_settings
 
@@ -10,8 +11,6 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 def get_current_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
 ) -> str:
-    """Verifies a Supabase-issued JWT and returns the user's Supabase user id (a UUID
-    string). This replaces the old hardcoded USER_ID = "prashant" everywhere downstream."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -19,12 +18,15 @@ def get_current_user_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
     settings = get_settings()
+    jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
     try:
+        jwks_client = PyJWKClient(jwks_url)
+        signing_key = jwks_client.get_signing_key_from_jwt(credentials.credentials)
         payload = jwt.decode(
             credentials.credentials,
-            settings.supabase_jwt_secret,
+            signing_key.key,
+            algorithms=["ES256", "RS256", "HS256"],
             audience="authenticated",
-            algorithms=["HS256"],
         )
     except jwt.PyJWTError:
         raise HTTPException(

@@ -8,8 +8,7 @@ class Settings(BaseSettings):
     openalex_api_key: str
     supabase_db_url: str
     supabase_url: str
-    supabase_anon_key: str
-    supabase_jwt_secret: str
+    supabase_publishable_key: str
     mem0_api_key: str
     tavily_api_key: str
     semantic_scholar_api_key: str = ""
