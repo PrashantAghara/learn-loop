@@ -21,8 +21,10 @@ dependencies = [
     "psycopg2-binary>=2.9.13",
     "pyjwt>=2.14.0",
     "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.32",
     "semanticscholar>=0.12.0",
     "sentence-transformers>=6.0.1",
     "supabase>=2.31.0",
+    "uvicorn[standard]>=0.53.0",
     "wikipedia>=1.4.0",
 ]

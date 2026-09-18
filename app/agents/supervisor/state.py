@@ -12,4 +12,5 @@ class LearnLoopState(TypedDict):
     agent_summary: str | None
     has_sources: bool | None
     response: str | None
+    quiz_id: str | None
     image_path: str | None

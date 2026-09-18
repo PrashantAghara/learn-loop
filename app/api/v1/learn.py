@@ -1,0 +1,39 @@
+from fastapi import APIRouter, Depends
+
+from app.agents.explainer_agent import record_reaction
+from app.agents.supervisor.graph import get_supervisor
+from app.core.auth import get_current_user_id
+from app.schemas.learn import MessageRequest, MessageResponse, ReactionRequest
+from app.services.quiz_session_service import get_quiz_session
+
+router = APIRouter(prefix="/learn", tags=["learn"])
+
+
+@router.post("/message", response_model=MessageResponse)
+def send_message(payload: MessageRequest, user_id: str = Depends(get_current_user_id)):
+    supervisor = get_supervisor()
+    result = supervisor.invoke({"user_id": user_id, "user_input": payload.message})
+
+    questions = None
+    if result.get("quiz_id"):
+        session = get_quiz_session(result["quiz_id"])
+        questions = [
+            {"question": q["question"]} for q in session["questions"]
+        ]  # expected_answer withheld
+
+    return MessageResponse(
+        intent=result.get("intent"),
+        topic=result.get("topic"),
+        response=result.get("response"),
+        image_path=result.get("image_path"),
+        quiz_id=result.get("quiz_id"),
+        questions=questions,
+    )
+
+
+@router.post("/reaction")
+def send_reaction(
+    payload: ReactionRequest, user_id: str = Depends(get_current_user_id)
+):
+    record_reaction(payload.topic, user_id=user_id, reaction=payload.reaction)
+    return {"status": "recorded"}

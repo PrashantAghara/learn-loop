@@ -6,6 +6,7 @@ from app.core.utils import parse_json_response
 from app.models.clients import get_llm
 from app.models.prompts.intent import INTENT_SYSTEM_PROMPT
 from app.services.imagegen_service import generate_diagram
+from app.services.quiz_session_service import create_quiz_session
 from app.services.rag_service import ingest_papers, retrieve_context
 
 
@@ -58,7 +59,10 @@ def explain_node(state: LearnLoopState) -> LearnLoopState:
 
 
 def assess_node(state: LearnLoopState) -> LearnLoopState:
-    """Only generates the quiz here — grading and finalize_assessment happen via
-    separate calls once answers arrive, driven by the API, not blocked on inside the graph."""
     questions = generate_quiz(state["topic"])
-    return {**state, "response": f"Quiz ready: {len(questions)} questions."}
+    quiz_id = create_quiz_session(state["topic"], state["user_id"], questions)
+    return {
+        **state,
+        "response": f"Quiz ready: {len(questions)} questions.",
+        "quiz_id": quiz_id,
+    }
