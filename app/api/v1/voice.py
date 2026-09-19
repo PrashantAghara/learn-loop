@@ -27,11 +27,21 @@ async def voice_message(
     result = supervisor.invoke({"user_id": user_id, "user_input": question})
     audio_paths = speak_response(result["intent"], result["response"])
 
+    audio_urls = [f"/api/v1/voice/audio/{os.path.basename(p)}" for p in audio_paths]
+    image_url = (
+        f"/api/v1/learn/image/{os.path.basename(result['image_path'])}"
+        if result.get("image_path")
+        else None
+    )
+
     return {
         "transcribed_question": question,
         "intent": result.get("intent"),
+        "topic": result.get("topic"),
         "response": result.get("response"),
-        "audio_files": audio_paths,
+        "audio_files": audio_urls,
+        "image_path": image_url,
+        "quiz_id": result.get("quiz_id"),
     }
 
 

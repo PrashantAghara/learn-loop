@@ -1,4 +1,7 @@
+import os
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 
 from app.agents.explainer_agent import record_reaction
 from app.agents.supervisor.graph import get_supervisor
@@ -21,11 +24,17 @@ def send_message(payload: MessageRequest, user_id: str = Depends(get_current_use
             {"question": q["question"]} for q in session["questions"]
         ]  # expected_answer withheld
 
+    image_url = (
+        f"/api/v1/learn/image/{os.path.basename(result['image_path'])}"
+        if result.get("image_path")
+        else None
+    )
+
     return MessageResponse(
         intent=result.get("intent"),
         topic=result.get("topic"),
         response=result.get("response"),
-        image_path=result.get("image_path"),
+        image_path=image_url,
         quiz_id=result.get("quiz_id"),
         questions=questions,
     )
@@ -37,3 +46,8 @@ def send_reaction(
 ):
     record_reaction(payload.topic, user_id=user_id, reaction=payload.reaction)
     return {"status": "recorded"}
+
+
+@router.get("/image/{filename}")
+def get_image_file(filename: str):
+    return FileResponse(f"images_out/{filename}", media_type="image/png")
