@@ -26,7 +26,7 @@ def get_current_user_id(
             credentials.credentials,
             signing_key.key,
             algorithms=["ES256", "RS256", "HS256"],
-            audience="authenticated",
+            options={"verify_aud": False},
         )
     except jwt.PyJWTError:
         raise HTTPException(
