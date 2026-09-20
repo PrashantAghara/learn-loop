@@ -47,14 +47,6 @@ def _build_supervisor():
             "explain": "explain",
             "assess": "assess",
             "research_agent": "research_agent",
-        },
-    )
-    graph.add_conditional_edges(
-        "check_sources",
-        route_after_check,
-        {
-            "explain": "explain",
-            "assess": "assess",
             "auto_research": "auto_research",
         },
     )

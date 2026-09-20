@@ -54,10 +54,16 @@ async def learn_websocket(websocket: WebSocket):
         while True:
             payload = json.loads(await websocket.receive_text())
             try:
-                user_id = verify_token(payload.get("token"))
-            except ValueError:
+                token = payload.get("token") or payload.get("access_token")
+                if not token:
+                    await websocket.send_json(
+                        {"type": "error", "detail": "Missing token in payload (expected 'token' or 'access_token' field)"}
+                    )
+                    continue
+                user_id = verify_token(token)
+            except ValueError as e:
                 await websocket.send_json(
-                    {"type": "error", "detail": "Invalid or expired token"}
+                    {"type": "error", "detail": str(e)}
                 )
                 continue
 

@@ -1,43 +1,63 @@
-import httpx
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import base64
+import hashlib
+import secrets
+
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import RedirectResponse
+from supabase import create_client
 
 from app.core.config import get_settings
 
-_bearer_scheme = HTTPBearer(auto_error=False)
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+FRONTEND_URL = "http://localhost:5173"
+CALLBACK_URL = "http://localhost:8000/api/v1/auth/callback"
+COOKIE_NAME = "pkce_code_verifier"
 
 
-def verify_token(token: str) -> str:
+def _generate_pkce_pair() -> tuple[str, str]:
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
+    return verifier, challenge
+
+
+@router.get("/login/google")
+def login_google():
     settings = get_settings()
-    try:
-        resp = httpx.get(
-            f"{settings.supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.supabase_publishable_key,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPStatusError:
-        raise ValueError("Invalid or expired token")
-    return resp.json()["id"]
+    verifier, challenge = _generate_pkce_pair()
+
+    authorize_url = (
+        f"{settings.supabase_url}/auth/v1/authorize"
+        f"?provider=google&redirect_to={CALLBACK_URL}"
+        f"&code_challenge={challenge}&code_challenge_method=s256"
+    )
+
+    response = RedirectResponse(authorize_url)
+    response.set_cookie(
+        COOKIE_NAME, verifier, httponly=True, max_age=300, samesite="lax"
+    )
+    return response
 
 
-def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
-) -> str:
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing bearer token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    try:
-        return verify_token(credentials.credentials)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+@router.get("/callback")
+def auth_callback(request: Request, code: str = Query(...)):
+    settings = get_settings()
+    verifier = request.cookies.get(COOKIE_NAME)
+    if not verifier:
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=missing_verifier")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_publishable_key)
+    session = supabase.auth.exchange_code_for_session(
+        {"auth_code": code, "code_verifier": verifier}
+    )
+
+    redirect = RedirectResponse(
+        f"{FRONTEND_URL}/auth/callback#access_token={session.session.access_token}"
+        f"&user_id={session.user.id}&email={session.user.email}"
+    )
+    redirect.delete_cookie(COOKIE_NAME)
+    return redirect
