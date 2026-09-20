@@ -3,10 +3,10 @@ export default function MessageBubble({ role, children }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-2xl px-4 py-3 rounded-2xl whitespace-pre-wrap ${
+        className={`max-w-2xl px-4 py-3 rounded-2xl whitespace-pre-wrap text-sm leading-relaxed ${
           isUser
-            ? "bg-slate-800 text-white"
-            : "bg-white border border-slate-200 text-slate-800"
+            ? "bg-[var(--accent)] text-white"
+            : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)]"
         }`}
       >
         {children}

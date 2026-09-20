@@ -1,8 +1,8 @@
 import MessageBubble from "./MessageBubble";
 import MessageImage from "./MessageImage";
 import MessageAudio from "./MessageAudio";
-import ReactionBar from "../Reaction/ReactionBar";
-import QuizCard from "../quiz/QuizCard";
+import ReactionBar from "../reaction/ReactionBar";
+import QuizCard from "../Quiz/QuizCard";
 import { API_BASE } from "../../api/client";
 
 export default function Message({ message }) {
@@ -31,8 +31,13 @@ export default function Message({ message }) {
       {role === "assistant" && intent === "explain" && topic && (
         <ReactionBar topic={topic} />
       )}
-      {role === "assistant" && quiz_id && (
+      {role === "assistant" && quiz_id && questions?.length > 0 && (
         <QuizCard quizId={quiz_id} questions={questions} />
+      )}
+      {role === "assistant" && quiz_id && !questions?.length && (
+        <p className="text-xs text-[var(--text-muted)] mt-2">
+          Quiz no longer available for retaking.
+        </p>
       )}
     </div>
   );

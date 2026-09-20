@@ -3,7 +3,7 @@ export default function MessageImage({ src }) {
     <img
       src={src}
       alt="Generated illustration"
-      className="mt-2 rounded-xl max-w-sm border border-slate-200"
+      className="mt-2 rounded-xl max-w-sm border border-[var(--border)]"
     />
   );
 }
