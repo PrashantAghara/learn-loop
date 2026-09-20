@@ -5,6 +5,7 @@ from app.agents.supervisor.state import LearnLoopState
 from app.core.utils import parse_json_response
 from app.models.clients import get_llm
 from app.models.prompts.intent import INTENT_SYSTEM_PROMPT
+from app.services.conversation_service import get_last_topic
 from app.services.imagegen_service import generate_diagram
 from app.services.quiz_session_service import create_quiz_session
 from app.services.rag_service import ingest_papers, retrieve_context
@@ -13,9 +14,14 @@ from app.services.research_service import research_topic
 
 def classify_intent(state: LearnLoopState) -> LearnLoopState:
     llm = get_llm()
+    context_hint = ""
+    if state.get("conversation_id"):
+        last_topic = get_last_topic(state["conversation_id"])
+        if last_topic:
+            context_hint = f"\n\nFor context, the last topic discussed was '{last_topic}'. If this message is a vague follow-up (e.g. 'tell me more', 'explain that'), resolve the topic using this context."
     response = llm.invoke(
         [
-            {"role": "system", "content": INTENT_SYSTEM_PROMPT},
+            {"role": "system", "content": INTENT_SYSTEM_PROMPT + context_hint},
             {"role": "user", "content": state["user_input"]},
         ]
     )

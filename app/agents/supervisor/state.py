@@ -14,3 +14,4 @@ class LearnLoopState(TypedDict):
     response: str | None
     quiz_id: str | None
     image_path: str | None
+    conversation_id: str | None
