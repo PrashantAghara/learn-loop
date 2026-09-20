@@ -57,14 +57,15 @@ async def learn_websocket(websocket: WebSocket):
                 token = payload.get("token") or payload.get("access_token")
                 if not token:
                     await websocket.send_json(
-                        {"type": "error", "detail": "Missing token in payload (expected 'token' or 'access_token' field)"}
+                        {
+                            "type": "error",
+                            "detail": "Missing token in payload (expected 'token' or 'access_token' field)",
+                        }
                     )
                     continue
                 user_id = verify_token(token)
             except ValueError as e:
-                await websocket.send_json(
-                    {"type": "error", "detail": str(e)}
-                )
+                await websocket.send_json({"type": "error", "detail": str(e)})
                 continue
 
             conversation_id = payload.get("conversation_id")
@@ -80,10 +81,11 @@ async def learn_websocket(websocket: WebSocket):
                 )
 
                 handlers = {
-                    "continue_research": lambda: continue_research(conversation_id),
-                    "quiz_context": lambda: quiz_on_context(conversation_id, user_id),
+                    "continue_research": lambda: continue_research(conversation_id),  # noqa: B023
+                    "quiz_context": lambda: quiz_on_context(conversation_id, user_id),  # noqa: B023
                     "explain_related": lambda: explain_related(
-                        conversation_id, user_id
+                        conversation_id,  # noqa: B023
+                        user_id,  # noqa: B023
                     ),
                 }
                 if action not in handlers:

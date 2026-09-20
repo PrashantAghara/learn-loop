@@ -23,12 +23,14 @@ def verify_token(token: str) -> str:
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as e:
-        raise ValueError(f"Token verification failed: {e.response.status_code} - {e.response.text}")
+        raise ValueError(
+            f"Token verification failed: {e.response.status_code} - {e.response.text}"
+        )
     return resp.json()["id"]
 
 
 def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
 ) -> str:
     if credentials is None:
         raise HTTPException(

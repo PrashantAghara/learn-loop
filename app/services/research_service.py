@@ -1,6 +1,7 @@
 from app.providers.arxiv_provider import search_arxiv
 from app.providers.openalex_provider import search_openalex
 from app.providers.semantic_scholar_provider import search_semantic_scholar
+from app.providers.tavily_provider import search_tavily
 from app.providers.wikipedia_provider import search_wikipedia
 from app.schemas.paper import Paper
 
@@ -15,6 +16,7 @@ def research_topic(query: str, max_results: int = 5) -> list[Paper]:
         + search_openalex(query, max_results)
         + search_semantic_scholar(query, max_results)
         + search_wikipedia(query, max_results)
+        + search_tavily(query, max_results)
     )
     seen: set[str] = set()
     deduped: list[Paper] = []
