@@ -1,10 +1,10 @@
+from app.core.logging_config import get_logger
 from app.providers.arxiv_provider import search_arxiv
 from app.providers.openalex_provider import search_openalex
 from app.providers.semantic_scholar_provider import search_semantic_scholar
 from app.providers.tavily_provider import search_tavily
 from app.providers.wikipedia_provider import search_wikipedia
 from app.schemas.paper import Paper
-from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -29,5 +29,8 @@ def research_topic(query: str, max_results: int = 5) -> list[Paper]:
         if key not in seen:
             seen.add(key)
             deduped.append(p)
-    logger.info("Research complete", extra={"query": query, "total_papers": len(papers), "deduped": len(deduped)})
+    logger.info(
+        "Research complete",
+        extra={"query": query, "total_papers": len(papers), "deduped": len(deduped)},
+    )
     return deduped
