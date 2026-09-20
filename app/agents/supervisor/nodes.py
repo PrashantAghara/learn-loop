@@ -8,6 +8,7 @@ from app.models.prompts.intent import INTENT_SYSTEM_PROMPT
 from app.services.imagegen_service import generate_diagram
 from app.services.quiz_session_service import create_quiz_session
 from app.services.rag_service import ingest_papers, retrieve_context
+from app.services.research_service import research_topic
 
 
 def classify_intent(state: LearnLoopState) -> LearnLoopState:
@@ -65,4 +66,17 @@ def assess_node(state: LearnLoopState) -> LearnLoopState:
         **state,
         "response": f"Quiz ready: {len(questions)} questions.",
         "quiz_id": quiz_id,
+    }
+
+
+def auto_research_node(state: LearnLoopState) -> LearnLoopState:
+    """Deterministic research (all 4 structured sources, no LLM tool-choice involved) —
+    used only when explain/assess find no existing RAG coverage. Unlike research_agent_node
+    (the tool-calling agent for explicit 'research' requests), this always populates papers
+    reliably instead of depending on the model choosing to call the right tool."""
+    papers = research_topic(state["topic"])
+    return {
+        **state,
+        "papers": papers,
+        "agent_summary": f"Auto-researched {len(papers)} papers for grounding.",
     }

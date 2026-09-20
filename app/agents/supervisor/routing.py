@@ -11,3 +11,7 @@ def route_after_check(state: LearnLoopState) -> str:
 
 def route_after_ingest(state: LearnLoopState) -> str:
     return "format_research" if state["intent"] == "research" else state["intent"]
+
+
+def route_after_check(state: LearnLoopState) -> str:
+    return state["intent"] if state["has_sources"] else "auto_research"

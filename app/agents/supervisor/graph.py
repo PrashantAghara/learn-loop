@@ -2,6 +2,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agents.supervisor.nodes import (
     assess_node,
+    auto_research_node,
     check_sources_node,
     classify_intent,
     explain_node,
@@ -28,6 +29,7 @@ def _build_supervisor():
     graph.add_node("format_research", format_research_response)
     graph.add_node("explain", explain_node)
     graph.add_node("assess", assess_node)
+    graph.add_node("auto_research", auto_research_node)
 
     graph.add_edge(START, "classify")
     graph.add_conditional_edges(
@@ -47,6 +49,16 @@ def _build_supervisor():
             "research_agent": "research_agent",
         },
     )
+    graph.add_conditional_edges(
+        "check_sources",
+        route_after_check,
+        {
+            "explain": "explain",
+            "assess": "assess",
+            "auto_research": "auto_research",
+        },
+    )
+    graph.add_edge("auto_research", "ingest")
     graph.add_edge("research_agent", "ingest")
     graph.add_conditional_edges(
         "ingest",
