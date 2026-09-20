@@ -1,8 +1,10 @@
 import requests
 
 from app.core.config import get_settings
+from app.core.logging_config import get_logger
 from app.schemas.paper import Paper
 
+logger = get_logger(__name__)
 OPENALEX_BASE = "https://api.openalex.org/works"
 
 
@@ -24,14 +26,15 @@ def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
         "select": "title,authorships,publication_year,abstract_inverted_index,id,open_access,cited_by_count",
         "api_key": settings.openalex_api_key,
     }
+    logger.debug("Searching OpenAlex", extra={"query": query, "max_results": max_results})
     try:
         resp = requests.get(OPENALEX_BASE, params=params, timeout=15)
         resp.raise_for_status()
     except Exception as e:  # noqa: BLE001
-        print(f"⚠️ OpenAlex search failed ({type(e).__name__}); continuing without it")
+        logger.warning("OpenAlex search failed", extra={"query": query, "error": str(e), "type": type(e).__name__})
         return []
 
-    return [
+    results = [
         Paper(
             title=w.get("title") or "Untitled",
             authors=[a["author"]["display_name"] for a in w.get("authorships", [])],
@@ -44,3 +47,5 @@ def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
         )
         for w in resp.json()["results"]
     ]
+    logger.info("OpenAlex search complete", extra={"query": query, "results": len(results)})
+    return results

@@ -1,3 +1,4 @@
+from app.core.logging_config import get_logger
 from app.models.clients import get_llm
 from app.providers.conversation_provider import (
     add_message,
@@ -6,8 +7,11 @@ from app.providers.conversation_provider import (
     list_conversations,
 )
 
+logger = get_logger(__name__)
+
 
 def start_conversation(user_id: str, first_message: str) -> str:
+    logger.info("Starting new conversation", extra={"user_id": user_id, "first_message": first_message[:100]})
     llm = get_llm()
     response = llm.invoke(
         [
@@ -18,12 +22,16 @@ def start_conversation(user_id: str, first_message: str) -> str:
             {"role": "user", "content": first_message},
         ]
     )
-    return create_conversation(user_id, response.content.strip())
+    title = response.content.strip()
+    conversation_id = create_conversation(user_id, title)
+    logger.info("Conversation created", extra={"user_id": user_id, "conversation_id": conversation_id, "title": title})
+    return conversation_id
 
 
 def record_turn(
     conversation_id: str, user_message: str, assistant_result: dict
 ) -> None:
+    logger.debug("Recording conversation turn", extra={"conversation_id": conversation_id, "intent": assistant_result.get("intent")})
     add_message(conversation_id, "user", user_message)
     add_message(
         conversation_id,
@@ -39,6 +47,7 @@ def record_turn(
 
 
 def get_history(conversation_id: str) -> list[dict]:
+    logger.debug("Fetching conversation history", extra={"conversation_id": conversation_id})
     return get_messages(conversation_id)
 
 
@@ -59,4 +68,5 @@ def get_last_topic(conversation_id: str) -> str | None:
 
 
 def list_user_conversations(user_id: str) -> list[dict]:
+    logger.debug("Listing user conversations", extra={"user_id": user_id})
     return list_conversations(user_id)

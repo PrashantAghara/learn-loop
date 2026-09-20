@@ -1,10 +1,14 @@
 import os
 import re
 
+from app.core.logging_config import get_logger
 from app.models.clients import get_groq_client
+
+logger = get_logger(__name__)
 
 
 def transcribe_audio(file_path: str) -> str:
+    logger.info("Transcribing audio", extra={"file_path": file_path})
     client = get_groq_client()
     with open(file_path, "rb") as f:
         transcription = client.audio.transcriptions.create(
@@ -13,6 +17,7 @@ def transcribe_audio(file_path: str) -> str:
             response_format="text",
             language="en",
         )
+    logger.info("Audio transcribed", extra={"file_path": file_path, "text_length": len(transcription) if isinstance(transcription, str) else 0})
     return transcription if isinstance(transcription, str) else transcription.text
 
 
@@ -34,6 +39,7 @@ def _split_for_tts(text: str, max_chars: int = 200) -> list[str]:
 def synthesize_speech(
     text: str, voice: str = "troy", out_dir: str = "audio_out"
 ) -> list[str]:
+    logger.info("Synthesizing speech", extra={"text_length": len(text), "voice": voice})
     client = get_groq_client()
     os.makedirs(out_dir, exist_ok=True)
     paths = []
@@ -47,4 +53,5 @@ def synthesize_speech(
         )
         response.write_to_file(speech_path)
         paths.append(speech_path)
+    logger.info("Speech synthesized", extra={"chunks": len(paths), "output_dir": out_dir})
     return paths

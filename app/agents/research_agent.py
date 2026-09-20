@@ -6,6 +6,7 @@ from langchain_tavily import TavilySearch
 from langgraph.prebuilt import create_react_agent
 
 from app.core.config import get_settings
+from app.core.logging_config import get_logger
 from app.models.clients import get_llm
 from app.models.prompts.research import RESEARCH_AGENT_PROMPT
 from app.providers.arxiv_provider import search_arxiv
@@ -14,6 +15,8 @@ from app.providers.semantic_scholar_provider import search_semantic_scholar
 from app.providers.wikipedia_provider import search_wikipedia
 from app.schemas.paper import Paper
 from app.services.research_service import research_topic
+
+logger = get_logger(__name__)
 
 
 def _make_structured_tools() -> tuple[list[Paper], list]:
@@ -89,6 +92,7 @@ def _build_agent():
 def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
     for attempt in range(max_retries + 1):
         try:
+            logger.debug("Invoking research agent", extra={"topic": topic, "attempt": attempt + 1})
             return agent.invoke(
                 {
                     "messages": [
@@ -98,9 +102,7 @@ def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
             )
         except BadRequestError as e:
             if "tool_use_failed" in str(e) or "was not in request.tools" in str(e):
-                print(
-                    f"⚠️ Tool call generation glitch (attempt {attempt + 1}/{max_retries + 1}); retrying..."
-                )
+                logger.warning("Tool call generation glitch", extra={"topic": topic, "attempt": attempt + 1, "error": str(e)})
                 continue
             raise
     return None
@@ -109,13 +111,15 @@ def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
 def research_with_agent(topic: str) -> dict:
     """Tool-calling Research Agent, with a deterministic fallback to research_service.research_topic()
     when Groq's gpt-oss-120b tool-calling becomes unreliable (a known, documented issue)."""
+    logger.info("Starting research with agent", extra={"topic": topic})
     agent, collected_papers = _build_agent()
     result = _invoke_with_retry(agent, topic)
 
     if result is not None:
+        logger.info("Research agent completed", extra={"topic": topic, "papers_collected": len(collected_papers)})
         return {"papers": collected_papers, "summary": result["messages"][-1].content}
 
-    print("⚠️ Falling back to direct search across all sources.")
+    logger.warning("Falling back to direct search", extra={"topic": topic})
     papers = research_topic(topic)
     summary = "\n".join(f"- {p.title} ({p.year}, {p.source})" for p in papers)
     return {

@@ -6,9 +6,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.agents.quick_actions import continue_research, explain_related, quiz_on_context
 from app.agents.supervisor.graph import get_supervisor
 from app.core.auth import verify_token
+from app.core.logging_config import get_logger
 from app.services.conversation_service import record_turn, start_conversation
 from app.services.quiz_session_service import get_quiz_session
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["ws"])
 
 PHASE_LABELS = {
@@ -50,12 +52,15 @@ def _serialize_result(state: dict) -> dict:
 @router.websocket("/ws/learn")
 async def learn_websocket(websocket: WebSocket):
     await websocket.accept()
+    logger.info("WebSocket connection established", extra={"client": websocket.client.host if websocket.client else "unknown"})
     try:
         while True:
             payload = json.loads(await websocket.receive_text())
+            logger.debug("Received WebSocket message", extra={"payload_type": payload.get("type")})
             try:
                 token = payload.get("token") or payload.get("access_token")
                 if not token:
+                    logger.warning("Missing token in WebSocket payload")
                     await websocket.send_json(
                         {
                             "type": "error",
@@ -65,6 +70,7 @@ async def learn_websocket(websocket: WebSocket):
                     continue
                 user_id = verify_token(token)
             except ValueError as e:
+                logger.warning("WebSocket token verification failed", extra={"error": str(e)})
                 await websocket.send_json({"type": "error", "detail": str(e)})
                 continue
 
@@ -72,6 +78,7 @@ async def learn_websocket(websocket: WebSocket):
 
             if payload.get("type") == "action":
                 action = payload.get("action")
+                logger.info("Processing WebSocket action", extra={"action": action, "conversation_id": conversation_id})
                 await websocket.send_json(
                     {
                         "type": "phase",
@@ -89,6 +96,7 @@ async def learn_websocket(websocket: WebSocket):
                     ),
                 }
                 if action not in handlers:
+                    logger.warning("Unknown WebSocket action", extra={"action": action})
                     await websocket.send_json(
                         {"type": "error", "detail": f"Unknown action: {action}"}
                     )
@@ -110,10 +118,12 @@ async def learn_websocket(websocket: WebSocket):
             user_message = payload.get("message")
             if not conversation_id:
                 conversation_id = start_conversation(user_id, user_message)
+                logger.info("Created new conversation", extra={"conversation_id": conversation_id, "user_id": user_id})
                 await websocket.send_json(
                     {"type": "conversation_created", "conversation_id": conversation_id}
                 )
 
+            logger.info("Processing user message", extra={"conversation_id": conversation_id, "user_id": user_id})
             supervisor = get_supervisor()
             final_state = {}
             async for update in supervisor.astream(
@@ -126,6 +136,7 @@ async def learn_websocket(websocket: WebSocket):
             ):
                 for node_name, node_output in update.items():
                     final_state.update(node_output)
+                    logger.debug("Supervisor node completed", extra={"node": node_name, "conversation_id": conversation_id})
                     await websocket.send_json(
                         {
                             "type": "phase",
@@ -136,8 +147,11 @@ async def learn_websocket(websocket: WebSocket):
 
             result = _serialize_result(final_state)
             record_turn(conversation_id, user_message, result)
+            logger.info("Message processing complete", extra={"conversation_id": conversation_id, "intent": result.get("intent")})
             await websocket.send_json(
                 {"type": "result", "conversation_id": conversation_id, **result}
             )
     except WebSocketDisconnect:
-        pass
+        logger.info("WebSocket disconnected", extra={"client": websocket.client.host if websocket.client else "unknown"})
+    except Exception as e:
+        logger.exception("WebSocket error", extra={"error": str(e)})

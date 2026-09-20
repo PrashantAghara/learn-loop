@@ -3,12 +3,15 @@ from pgvector.psycopg2 import register_vector
 from psycopg2.extensions import connection as PGConnection
 
 from app.core.config import get_settings
+from app.core.logging_config import get_logger
 
+logger = get_logger(__name__)
 _connection: PGConnection | None = None
 
 
 def _create_connection() -> PGConnection:
     settings = get_settings()
+    logger.info("Creating database connection")
     conn = psycopg2.connect(
         settings.supabase_db_url,
         connect_timeout=10,
@@ -16,6 +19,7 @@ def _create_connection() -> PGConnection:
     )
     conn.autocommit = True
     register_vector(conn)
+    logger.info("Database connection established")
     return conn
 
 
@@ -28,5 +32,6 @@ def get_connection() -> PGConnection:
         with _connection.cursor() as cur:
             cur.execute("select 1")
     except Exception:  # noqa: BLE001
+        logger.warning("Database connection lost, reconnecting")
         _connection = _create_connection()
     return _connection

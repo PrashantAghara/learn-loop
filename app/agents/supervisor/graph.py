@@ -16,11 +16,14 @@ from app.agents.supervisor.routing import (
     route_by_intent,
 )
 from app.agents.supervisor.state import LearnLoopState
+from app.core.logging_config import get_logger
 
+logger = get_logger(__name__)
 _supervisor = None
 
 
 def _build_supervisor():
+    logger.info("Building supervisor graph")
     graph = StateGraph(LearnLoopState)
     graph.add_node("classify", classify_intent)
     graph.add_node("check_sources", check_sources_node)
@@ -64,6 +67,7 @@ def _build_supervisor():
     graph.add_edge("format_research", END)
     graph.add_edge("explain", END)
     graph.add_edge("assess", END)
+    logger.info("Supervisor graph built successfully")
     return graph.compile()
 
 

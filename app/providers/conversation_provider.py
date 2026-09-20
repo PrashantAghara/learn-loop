@@ -1,19 +1,26 @@
 import json
 
 from app.core.database import get_connection
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def create_conversation(user_id: str, title: str) -> str:
+    logger.debug("Creating conversation", extra={"user_id": user_id, "title": title})
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
             "insert into conversations (user_id, title) values (%s, %s) returning id",
             (user_id, title),
         )
-        return str(cur.fetchone()[0])
+        conversation_id = str(cur.fetchone()[0])
+        logger.info("Conversation created", extra={"conversation_id": conversation_id, "user_id": user_id})
+        return conversation_id
 
 
 def list_conversations(user_id: str) -> list[dict]:
+    logger.debug("Listing conversations", extra={"user_id": user_id})
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
@@ -25,6 +32,7 @@ def list_conversations(user_id: str) -> list[dict]:
 
 
 def get_conversation(conversation_id: str, user_id: str) -> dict | None:
+    logger.debug("Getting conversation", extra={"conversation_id": conversation_id, "user_id": user_id})
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
@@ -41,6 +49,7 @@ def get_conversation(conversation_id: str, user_id: str) -> dict | None:
 def add_message(
     conversation_id: str, role: str, content: str, metadata: dict | None = None
 ) -> None:
+    logger.debug("Adding message", extra={"conversation_id": conversation_id, "role": role, "content_length": len(content)})
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
@@ -54,6 +63,7 @@ def add_message(
 
 
 def get_messages(conversation_id: str) -> list[dict]:
+    logger.debug("Getting messages", extra={"conversation_id": conversation_id})
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
