@@ -52,106 +52,153 @@ def _serialize_result(state: dict) -> dict:
 @router.websocket("/ws/learn")
 async def learn_websocket(websocket: WebSocket):
     await websocket.accept()
-    logger.info("WebSocket connection established", extra={"client": websocket.client.host if websocket.client else "unknown"})
+    logger.info(
+        "WebSocket connection established",
+        extra={"client": websocket.client.host if websocket.client else "unknown"},
+    )
     try:
         while True:
-            payload = json.loads(await websocket.receive_text())
-            logger.debug("Received WebSocket message", extra={"payload_type": payload.get("type")})
+            raw = await websocket.receive_text()
             try:
-                token = payload.get("token") or payload.get("access_token")
-                if not token:
-                    logger.warning("Missing token in WebSocket payload")
-                    await websocket.send_json(
-                        {
-                            "type": "error",
-                            "detail": "Missing token in payload (expected 'token' or 'access_token' field)",
-                        }
-                    )
-                    continue
-                user_id = verify_token(token)
-            except ValueError as e:
-                logger.warning("WebSocket token verification failed", extra={"error": str(e)})
-                await websocket.send_json({"type": "error", "detail": str(e)})
-                continue
-
-            conversation_id = payload.get("conversation_id")
-
-            if payload.get("type") == "action":
-                action = payload.get("action")
-                logger.info("Processing WebSocket action", extra={"action": action, "conversation_id": conversation_id})
-                await websocket.send_json(
-                    {
-                        "type": "phase",
-                        "phase": action,
-                        "label": ACTION_LABELS.get(action, action),
-                    }
+                payload = json.loads(raw)
+                logger.debug(
+                    "Received WebSocket message",
+                    extra={"payload_type": payload.get("type")},
                 )
 
-                handlers = {
-                    "continue_research": lambda: continue_research(conversation_id),  # noqa: B023
-                    "quiz_context": lambda: quiz_on_context(conversation_id, user_id),  # noqa: B023
-                    "explain_related": lambda: explain_related(
-                        conversation_id,  # noqa: B023
-                        user_id,  # noqa: B023
-                    ),
-                }
-                if action not in handlers:
-                    logger.warning("Unknown WebSocket action", extra={"action": action})
-                    await websocket.send_json(
-                        {"type": "error", "detail": f"Unknown action: {action}"}
+                try:
+                    token = payload.get("token") or payload.get("access_token")
+                    if not token:
+                        logger.warning("Missing token in WebSocket payload")
+                        await websocket.send_json(
+                            {"type": "auth_error", "detail": "Missing token in payload"}
+                        )
+                        continue
+                    user_id = verify_token(token)
+                except ValueError as e:
+                    logger.warning(
+                        "WebSocket token verification failed", extra={"error": str(e)}
                     )
+                    await websocket.send_json({"type": "auth_error", "detail": str(e)})
                     continue
 
-                result = handlers[action]()
-                if result.get("quiz_id"):
-                    session = get_quiz_session(result["quiz_id"])
-                    result["questions"] = [
-                        {"question": q["question"]} for q in session["questions"]
-                    ]
-                if conversation_id:
-                    record_turn(conversation_id, f"[{action}]", result)
-                await websocket.send_json(
-                    {"type": "result", "conversation_id": conversation_id, **result}
-                )
-                continue
+                conversation_id = payload.get("conversation_id")
 
-            user_message = payload.get("message")
-            if not conversation_id:
-                conversation_id = start_conversation(user_id, user_message)
-                logger.info("Created new conversation", extra={"conversation_id": conversation_id, "user_id": user_id})
-                await websocket.send_json(
-                    {"type": "conversation_created", "conversation_id": conversation_id}
-                )
-
-            logger.info("Processing user message", extra={"conversation_id": conversation_id, "user_id": user_id})
-            supervisor = get_supervisor()
-            final_state = {}
-            async for update in supervisor.astream(
-                {
-                    "user_id": user_id,
-                    "conversation_id": conversation_id,
-                    "user_input": user_message,
-                },
-                stream_mode="updates",
-            ):
-                for node_name, node_output in update.items():
-                    final_state.update(node_output)
-                    logger.debug("Supervisor node completed", extra={"node": node_name, "conversation_id": conversation_id})
+                if payload.get("type") == "action":
+                    action = payload.get("action")
+                    logger.info(
+                        "Processing WebSocket action",
+                        extra={"action": action, "conversation_id": conversation_id},
+                    )
                     await websocket.send_json(
                         {
                             "type": "phase",
-                            "phase": node_name,
-                            "label": PHASE_LABELS.get(node_name, node_name),
+                            "phase": action,
+                            "label": ACTION_LABELS.get(action, action),
                         }
                     )
 
-            result = _serialize_result(final_state)
-            record_turn(conversation_id, user_message, result)
-            logger.info("Message processing complete", extra={"conversation_id": conversation_id, "intent": result.get("intent")})
-            await websocket.send_json(
-                {"type": "result", "conversation_id": conversation_id, **result}
-            )
+                    handlers = {
+                        "continue_research": lambda: continue_research(conversation_id),
+                        "quiz_context": lambda: quiz_on_context(
+                            conversation_id, user_id
+                        ),
+                        "explain_related": lambda: explain_related(
+                            conversation_id, user_id
+                        ),
+                    }
+                    if action not in handlers:
+                        logger.warning(
+                            "Unknown WebSocket action", extra={"action": action}
+                        )
+                        await websocket.send_json(
+                            {"type": "error", "detail": f"Unknown action: {action}"}
+                        )
+                        continue
+
+                    result = handlers[action]()
+                    if result.get("quiz_id"):
+                        session = get_quiz_session(result["quiz_id"])
+                        result["questions"] = [
+                            {"question": q["question"]} for q in session["questions"]
+                        ]
+                    if conversation_id:
+                        record_turn(conversation_id, f"[{action}]", result)
+                    await websocket.send_json(
+                        {"type": "result", "conversation_id": conversation_id, **result}
+                    )
+                    continue
+
+                user_message = payload.get("message")
+                if not conversation_id:
+                    conversation_id = start_conversation(user_id, user_message)
+                    logger.info(
+                        "Created new conversation",
+                        extra={"conversation_id": conversation_id, "user_id": user_id},
+                    )
+                    await websocket.send_json(
+                        {
+                            "type": "conversation_created",
+                            "conversation_id": conversation_id,
+                        }
+                    )
+
+                logger.info(
+                    "Processing user message",
+                    extra={"conversation_id": conversation_id, "user_id": user_id},
+                )
+                supervisor = get_supervisor()
+                final_state = {}
+                async for update in supervisor.astream(
+                    {
+                        "user_id": user_id,
+                        "conversation_id": conversation_id,
+                        "user_input": user_message,
+                    },
+                    stream_mode="updates",
+                ):
+                    for node_name, node_output in update.items():
+                        final_state.update(node_output)
+                        logger.debug(
+                            "Supervisor node completed",
+                            extra={
+                                "node": node_name,
+                                "conversation_id": conversation_id,
+                            },
+                        )
+                        await websocket.send_json(
+                            {
+                                "type": "phase",
+                                "phase": node_name,
+                                "label": PHASE_LABELS.get(node_name, node_name),
+                            }
+                        )
+
+                result = _serialize_result(final_state)
+                record_turn(conversation_id, user_message, result)
+                logger.info(
+                    "Message processing complete",
+                    extra={
+                        "conversation_id": conversation_id,
+                        "intent": result.get("intent"),
+                    },
+                )
+                await websocket.send_json(
+                    {"type": "result", "conversation_id": conversation_id, **result}
+                )
+
+            except Exception as e:
+                logger.exception(
+                    "Error processing WebSocket message", extra={"error": str(e)}
+                )
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "detail": "Something went wrong processing that request. Please try again.",
+                    }
+                )
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected", extra={"client": websocket.client.host if websocket.client else "unknown"})
-    except Exception as e:
-        logger.exception("WebSocket error", extra={"error": str(e)})
+        logger.info(
+            "WebSocket disconnected",
+            extra={"client": websocket.client.host if websocket.client else "unknown"},
+        )

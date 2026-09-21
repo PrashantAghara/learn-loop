@@ -1,4 +1,4 @@
-import { createContext, useState } from "react";
+import { createContext, useCallback, useMemo, useState } from "react";
 
 export const AuthContext = createContext(null);
 
@@ -6,25 +6,24 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("access_token"));
   const [email, setEmail] = useState(localStorage.getItem("email"));
 
-  const login = (newToken, userId, newEmail) => {
+  const login = useCallback((newToken, userId, newEmail) => {
     localStorage.setItem("access_token", newToken);
     localStorage.setItem("user_id", userId);
     localStorage.setItem("email", newEmail);
     setToken(newToken);
     setEmail(newEmail);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.clear();
     setToken(null);
     setEmail(null);
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{ token, email, login, logout, isAuthenticated: !!token }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ token, email, login, logout, isAuthenticated: !!token }),
+    [token, email, login, logout]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

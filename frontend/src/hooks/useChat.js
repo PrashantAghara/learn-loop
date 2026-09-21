@@ -3,16 +3,27 @@ import { useAuth } from "./useAuth";
 import client from "../api/client";
 
 const WS_URL = "ws://localhost:8000/api/v1/ws/learn";
+const MAX_RECONNECT_DELAY = 10000;
 
 export function useChat(onConversationCreated) {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [phase, setPhase] = useState(null);
+  const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimeoutRef = useRef(null);
+  const manualCloseRef = useRef(false);
 
-  useEffect(() => {
+  const connect = useCallback(() => {
     const ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      setConnected(true);
+      reconnectAttemptRef.current = 0;
+    };
+
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === "phase") {
@@ -24,6 +35,10 @@ export function useChat(onConversationCreated) {
         setPhase(null);
         setConversationId(data.conversation_id);
         setMessages((prev) => [...prev, { role: "assistant", ...data }]);
+      } else if (data.type === "auth_error") {
+        setPhase(null);
+        logout();
+        window.location.href = "/login";
       } else if (data.type === "error") {
         setPhase(null);
         setMessages((prev) => [
@@ -35,13 +50,36 @@ export function useChat(onConversationCreated) {
         ]);
       }
     };
+
+    ws.onclose = () => {
+      setConnected(false);
+      if (manualCloseRef.current) return;
+      const delay = Math.min(
+        1000 * 2 ** reconnectAttemptRef.current,
+        MAX_RECONNECT_DELAY
+      );
+      reconnectAttemptRef.current += 1;
+      reconnectTimeoutRef.current = setTimeout(connect, delay);
+    };
+
+    ws.onerror = () => ws.close();
+
     wsRef.current = ws;
-    return () => ws.close();
-  }, []);
+  }, [onConversationCreated, logout]);
+
+  useEffect(() => {
+    manualCloseRef.current = false;
+    connect();
+    return () => {
+      manualCloseRef.current = true;
+      clearTimeout(reconnectTimeoutRef.current);
+      wsRef.current?.close();
+    };
+  }, [connect]);
 
   const sendMessage = useCallback(
     (text) => {
-      if (!text.trim() || !wsRef.current) return;
+      if (!text.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       wsRef.current.send(
         JSON.stringify({
@@ -56,7 +94,8 @@ export function useChat(onConversationCreated) {
 
   const sendAction = useCallback(
     (action) => {
-      wsRef.current?.send(
+      if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+      wsRef.current.send(
         JSON.stringify({
           type: "action",
           action,
@@ -99,6 +138,7 @@ export function useChat(onConversationCreated) {
   return {
     messages,
     phase,
+    connected,
     conversationId,
     sendMessage,
     sendAction,
