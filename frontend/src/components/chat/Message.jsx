@@ -2,7 +2,7 @@ import MessageBubble from "./MessageBubble";
 import MessageImage from "./MessageImage";
 import MessageAudio from "./MessageAudio";
 import ReactionBar from "../reaction/ReactionBar";
-import QuizCard from "../Quiz/QuizCard";
+import QuizCard from "../quiz/QuizCard";
 import { API_BASE } from "../../api/client";
 
 export default function Message({ message }) {
