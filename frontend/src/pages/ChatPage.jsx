@@ -1,6 +1,6 @@
 import { useAuth } from "../hooks/useAuth";
 import { useChat } from "../hooks/useChat";
-import { useConversations } from "../hooks/useConversations";
+import { useConversations } from "../hooks/useConversation";
 import TopBar from "../components/layout/TopBar";
 import Sidebar from "../components/sidebar/Sidebar";
 import MessageList from "../components/chat/MessageList";

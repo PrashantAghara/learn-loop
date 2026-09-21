@@ -15,12 +15,12 @@ def fetch_generated_image(
     encoded = urllib.parse.quote(prompt)
     url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=768&nologo=true"
 
-    logger.info("Generating image", extra={"filename": filename})
+    logger.info("Generating image", extra={"image_filename": filename})
     try:
         resp = requests.get(url, timeout=60)
         resp.raise_for_status()
     except Exception as e:  # noqa: BLE001
-        logger.warning("Image generation failed", extra={"filename": filename, "error": str(e), "type": type(e).__name__})
+        logger.warning("Image generation failed", extra={"image_filename": filename, "error": str(e), "type": type(e).__name__})
         return None
 
     image_path = os.path.join(out_dir, filename)
