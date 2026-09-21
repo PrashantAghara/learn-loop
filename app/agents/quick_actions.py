@@ -10,37 +10,53 @@ from app.services.rag_service import ingest_papers
 logger = get_logger(__name__)
 
 
-def continue_research(conversation_id: str) -> dict:
+def continue_research(conversation_id: str, user_id: str) -> dict:
     topic = get_last_topic(conversation_id)
     if not topic:
-        logger.info("Continue research: no topic found", extra={"conversation_id": conversation_id})
+        logger.info(
+            "Continue research: no topic found",
+            extra={"conversation_id": conversation_id},
+        )
         return {
             "intent": "research",
             "topic": None,
             "response": "Nothing to continue researching yet — ask something first.",
         }
-    logger.info("Continuing research", extra={"conversation_id": conversation_id, "topic": topic})
+    logger.info(
+        "Continuing research",
+        extra={"conversation_id": conversation_id, "topic": topic},
+    )
     result = research_with_agent(
         f"{topic} (find additional or more recent sources beyond what's already covered)"
     )
     if result["papers"]:
-        ingest_papers(result["papers"])
+        ingest_papers(result["papers"], user_id=user_id)
     return {"intent": "research", "topic": topic, "response": result["summary"]}
 
 
 def quiz_on_context(conversation_id: str, user_id: str) -> dict:
     topics = get_topics(conversation_id)
     if not topics:
-        logger.info("Quiz on context: no topics found", extra={"conversation_id": conversation_id})
+        logger.info(
+            "Quiz on context: no topics found",
+            extra={"conversation_id": conversation_id},
+        )
         return {
             "intent": "assess",
             "topic": None,
             "response": "Nothing to quiz you on yet — ask something first.",
         }
-    logger.info("Generating quiz on context", extra={"conversation_id": conversation_id, "topics": topics, "user_id": user_id})
+    logger.info(
+        "Generating quiz on context",
+        extra={
+            "conversation_id": conversation_id,
+            "topics": topics,
+            "user_id": user_id,
+        },
+    )
     all_questions = []
     for topic in topics:
-        all_questions.extend(generate_quiz(topic, n=2))
+        all_questions.extend(generate_quiz(topic, user_id=user_id, n=2))
     combined_topic = ", ".join(topics)
     quiz_id = create_quiz_session(combined_topic, user_id, all_questions)
     return {
@@ -54,13 +70,23 @@ def quiz_on_context(conversation_id: str, user_id: str) -> dict:
 def explain_related(conversation_id: str, user_id: str) -> dict:
     topics = get_topics(conversation_id)
     if not topics:
-        logger.info("Explain related: no topics found", extra={"conversation_id": conversation_id})
+        logger.info(
+            "Explain related: no topics found",
+            extra={"conversation_id": conversation_id},
+        )
         return {
             "intent": "explain",
             "topic": None,
             "response": "Nothing to build on yet — ask something first.",
         }
-    logger.info("Finding related concept", extra={"conversation_id": conversation_id, "topics": topics, "user_id": user_id})
+    logger.info(
+        "Finding related concept",
+        extra={
+            "conversation_id": conversation_id,
+            "topics": topics,
+            "user_id": user_id,
+        },
+    )
     llm = get_llm()
     suggestion = llm.invoke(
         [

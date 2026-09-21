@@ -8,10 +8,10 @@ from app.services.rag_service import retrieve_context
 logger = get_logger(__name__)
 
 
-def generate_quiz(topic: str, n: int = 3) -> list[dict]:
+def generate_quiz(topic: str, user_id: str, n: int = 3) -> list[dict]:
     logger.info("Generating quiz", extra={"topic": topic, "question_count": n})
     llm = get_llm()
-    sources = retrieve_context(topic, top_k=5)
+    sources = retrieve_context(topic, user_id=user_id, top_k=5)
     source_text = "\n\n".join(s["chunk_text"] for s in sources)
     response = llm.invoke(
         [
@@ -49,8 +49,14 @@ def grade_answer(question: str, expected_answer: str, learner_answer: str) -> di
 
 
 def finalize_assessment(topic: str, user_id: str, results: list[dict]) -> dict:
-    logger.info("Finalizing assessment", extra={"topic": topic, "user_id": user_id, "results_count": len(results)})
+    logger.info(
+        "Finalizing assessment",
+        extra={"topic": topic, "user_id": user_id, "results_count": len(results)},
+    )
     store_assessment(topic, results, user_id=user_id)
     correct = sum(r["correct"] for r in results)
-    logger.info("Assessment complete", extra={"topic": topic, "score": f"{correct}/{len(results)}"})
+    logger.info(
+        "Assessment complete",
+        extra={"topic": topic, "score": f"{correct}/{len(results)}"},
+    )
     return {"correct": correct, "total": len(results), "results": results}

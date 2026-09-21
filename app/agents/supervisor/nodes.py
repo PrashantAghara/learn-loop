@@ -30,32 +30,46 @@ def classify_intent(state: LearnLoopState) -> LearnLoopState:
         ]
     )
     parsed = parse_json_response(response.content)
-    logger.info("Intent classified", extra={"intent": parsed["intent"], "topic": parsed["topic"]})
+    logger.info(
+        "Intent classified",
+        extra={"intent": parsed["intent"], "topic": parsed["topic"]},
+    )
     return {**state, "intent": parsed["intent"], "topic": parsed["topic"]}
 
 
 def check_sources_node(state: LearnLoopState) -> LearnLoopState:
     logger.debug("Checking sources", extra={"topic": state["topic"]})
-    sources = retrieve_context(state["topic"], top_k=1)
+    sources = retrieve_context(state["topic"], user_id=state["user_id"], top_k=1)
     has_sources = bool(sources)
-    logger.info("Source check complete", extra={"topic": state["topic"], "has_sources": has_sources})
+    logger.info(
+        "Source check complete",
+        extra={"topic": state["topic"], "has_sources": has_sources},
+    )
     return {**state, "has_sources": has_sources}
 
 
 def research_agent_node(state: LearnLoopState) -> LearnLoopState:
     logger.info("Starting research agent", extra={"topic": state["topic"]})
     result = research_with_agent(state["topic"])
-    logger.info("Research agent complete", extra={"topic": state["topic"], "papers_found": len(result["papers"])})
+    logger.info(
+        "Research agent complete",
+        extra={"topic": state["topic"], "papers_found": len(result["papers"])},
+    )
     return {**state, "papers": result["papers"], "agent_summary": result["summary"]}
 
 
 def ingest_node(state: LearnLoopState) -> LearnLoopState:
     papers = state.get("papers") or []
     if not papers:
-        logger.warning("No structured papers collected to ingest", extra={"topic": state.get("topic")})
+        logger.warning(
+            "No structured papers collected to ingest",
+            extra={"topic": state.get("topic")},
+        )
         return state
-    inserted = ingest_papers(papers)
-    logger.info("Ingested papers", extra={"topic": state["topic"], "chunks_inserted": inserted})
+    inserted = ingest_papers(papers, user_id=state["user_id"])
+    logger.info(
+        "Ingested papers", extra={"topic": state["topic"], "chunks_inserted": inserted}
+    )
     return state
 
 
@@ -66,23 +80,41 @@ def format_research_response(state: LearnLoopState) -> LearnLoopState:
             f"- {p.title} ({p.year}, {p.source})" for p in state["papers"]
         )
         response += f"\n\nStored for future retrieval:\n{paper_list}"
-    logger.debug("Formatted research response", extra={"topic": state.get("topic"), "response_length": len(response)})
+    logger.debug(
+        "Formatted research response",
+        extra={"topic": state.get("topic"), "response_length": len(response)},
+    )
     return {**state, "response": response}
 
 
 def explain_node(state: LearnLoopState) -> LearnLoopState:
-    logger.info("Generating explanation", extra={"topic": state["topic"], "user_id": state["user_id"]})
+    logger.info(
+        "Generating explanation",
+        extra={"topic": state["topic"], "user_id": state["user_id"]},
+    )
     result = explain_with_self_correction(state["topic"], user_id=state["user_id"])
     image_path = generate_diagram(state["topic"], result["explanation"])
-    logger.info("Explanation generated", extra={"topic": state["topic"], "image_path": image_path})
+    logger.info(
+        "Explanation generated",
+        extra={"topic": state["topic"], "image_path": image_path},
+    )
     return {**state, "response": result["explanation"], "image_path": image_path}
 
 
 def assess_node(state: LearnLoopState) -> LearnLoopState:
-    logger.info("Generating quiz", extra={"topic": state["topic"], "user_id": state["user_id"]})
-    questions = generate_quiz(state["topic"])
+    logger.info(
+        "Generating quiz", extra={"topic": state["topic"], "user_id": state["user_id"]}
+    )
+    questions = generate_quiz(state["topic"], user_id=state["user_id"])
     quiz_id = create_quiz_session(state["topic"], state["user_id"], questions)
-    logger.info("Quiz generated", extra={"topic": state["topic"], "quiz_id": quiz_id, "question_count": len(questions)})
+    logger.info(
+        "Quiz generated",
+        extra={
+            "topic": state["topic"],
+            "quiz_id": quiz_id,
+            "question_count": len(questions),
+        },
+    )
     return {
         **state,
         "response": f"Quiz ready: {len(questions)} questions.",
@@ -97,7 +129,10 @@ def auto_research_node(state: LearnLoopState) -> LearnLoopState:
     reliably instead of depending on the model choosing to call the right tool."""
     logger.info("Starting auto research", extra={"topic": state["topic"]})
     papers = research_topic(state["topic"])
-    logger.info("Auto research complete", extra={"topic": state["topic"], "papers_found": len(papers)})
+    logger.info(
+        "Auto research complete",
+        extra={"topic": state["topic"], "papers_found": len(papers)},
+    )
     return {
         **state,
         "papers": papers,

@@ -99,12 +99,17 @@ async def learn_websocket(websocket: WebSocket):
                     )
 
                     handlers = {
-                        "continue_research": lambda: continue_research(conversation_id),
+                        "continue_research": lambda: continue_research(
+                            conversation_id,  # noqa: B023
+                            user_id,  # noqa: B023
+                        ),
                         "quiz_context": lambda: quiz_on_context(
-                            conversation_id, user_id
+                            conversation_id,  # noqa: B023
+                            user_id,  # noqa: B023
                         ),
                         "explain_related": lambda: explain_related(
-                            conversation_id, user_id
+                            conversation_id,  # noqa: B023
+                            user_id,  # noqa: B023
                         ),
                     }
                     if action not in handlers:
