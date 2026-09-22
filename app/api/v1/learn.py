@@ -72,5 +72,5 @@ def send_reaction(
 
 @router.get("/image/{filename}")
 def get_image_file(filename: str):
-    logger.debug("Serving image", extra={"filename": filename})
+    logger.debug("Serving image", extra={"filename": filename})  # noqa: G101
     return FileResponse(f"images_out/{filename}", media_type="image/png")
