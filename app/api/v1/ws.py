@@ -36,7 +36,7 @@ def _serialize_result(state: dict) -> dict:
         "intent": state.get("intent"),
         "topic": state.get("topic"),
         "response": state.get("response"),
-        "image_path": f"/api/v1/learn/image/{os.path.basename(image_path)}"
+        "image_path": f"/learn/image/{os.path.basename(image_path)}"
         if image_path
         else None,
         "quiz_id": state.get("quiz_id"),
