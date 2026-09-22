@@ -18,7 +18,6 @@ export default function ChatPage() {
     conversationId,
     sendMessage,
     sendAction,
-    addVoiceResult,
     startNewChat,
     loadConversation,
   } = useChat(refresh);
@@ -36,11 +35,7 @@ export default function ChatPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <MessageList messages={messages} phase={phase} />
           <QuickActions onAction={sendAction} disabled={!!phase} />
-          <ChatInput
-            onSend={sendMessage}
-            onVoiceResult={addVoiceResult}
-            disabled={!!phase}
-          />
+          <ChatInput onSend={sendMessage} disabled={!!phase} />
         </div>
       </div>
     </div>

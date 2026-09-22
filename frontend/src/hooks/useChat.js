@@ -142,7 +142,6 @@ export function useChat(onConversationCreated) {
     conversationId,
     sendMessage,
     sendAction,
-    addVoiceResult,
     startNewChat,
     loadConversation,
   };

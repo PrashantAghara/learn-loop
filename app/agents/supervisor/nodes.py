@@ -106,7 +106,12 @@ def assess_node(state: LearnLoopState) -> LearnLoopState:
         "Generating quiz", extra={"topic": state["topic"], "user_id": state["user_id"]}
     )
     questions = generate_quiz(state["topic"], user_id=state["user_id"])
-    quiz_id = create_quiz_session(state["topic"], state["user_id"], questions)
+    quiz_id = create_quiz_session(
+        state["topic"],
+        state["user_id"],
+        questions,
+        conversation_id=state.get("conversation_id"),
+    )
     logger.info(
         "Quiz generated",
         extra={

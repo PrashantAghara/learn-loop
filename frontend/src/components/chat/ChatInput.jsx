@@ -1,7 +1,6 @@
 import { useState } from "react";
-import VoiceRecorder from "../voice/VoiceRecorder";
 
-export default function ChatInput({ onSend, onVoiceResult, disabled }) {
+export default function ChatInput({ onSend, disabled }) {
   const [input, setInput] = useState("");
 
   const handleSend = () => {
@@ -21,7 +20,6 @@ export default function ChatInput({ onSend, onVoiceResult, disabled }) {
           placeholder="Ask to explain, research, or quiz you on a topic…"
           className="flex-1 border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-50"
         />
-        <VoiceRecorder onResult={onVoiceResult} />
         <button
           onClick={handleSend}
           disabled={disabled}

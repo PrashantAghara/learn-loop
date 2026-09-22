@@ -58,7 +58,9 @@ def quiz_on_context(conversation_id: str, user_id: str) -> dict:
     for topic in topics:
         all_questions.extend(generate_quiz(topic, user_id=user_id, n=2))
     combined_topic = ", ".join(topics)
-    quiz_id = create_quiz_session(combined_topic, user_id, all_questions)
+    quiz_id = create_quiz_session(
+        combined_topic, user_id, all_questions, conversation_id=conversation_id
+    )
     return {
         "intent": "assess",
         "topic": combined_topic,
