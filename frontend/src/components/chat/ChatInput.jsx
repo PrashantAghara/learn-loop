@@ -10,24 +10,25 @@ export default function ChatInput({ onSend, disabled }) {
   };
 
   return (
-    <footer className="border-t border-[var(--border)] bg-[var(--surface)] px-6 py-4">
-      <div className="max-w-3xl mx-auto flex gap-2">
+    <div className="px-6 pb-6 pt-2">
+      <div className="max-w-3xl mx-auto flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl px-4 py-3 shadow-sm focus-within:border-[var(--accent)] transition">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           disabled={disabled}
           placeholder="Ask to explain, research, or quiz you on a topic…"
-          className="flex-1 border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-50"
+          className="flex-1 bg-transparent text-[var(--text)] text-sm outline-none disabled:opacity-50"
         />
         <button
           onClick={handleSend}
           disabled={disabled}
-          className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-lg text-sm disabled:opacity-50"
+          aria-label="Send"
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white disabled:opacity-40 transition"
         >
-          Send
+          ↑
         </button>
       </div>
-    </footer>
+    </div>
   );
 }
