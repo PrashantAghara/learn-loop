@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "./useAuth";
 import client from "../api/client";
 
-const WS_URL = "ws://localhost:8000/api/v1/ws/learn";
+const WS_URL =
+  import.meta.env.VITE_WS_URL || "ws://localhost:8000/api/v1/ws/learn";
 const MAX_RECONNECT_DELAY = 10000;
 
 export function useChat(onConversationCreated) {

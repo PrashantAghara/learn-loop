@@ -1,9 +1,10 @@
+import numpy as np
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from psycopg2.extras import Json
 
 from app.core.database import get_connection
 from app.core.logging_config import get_logger
-from app.models.clients import get_embedder
+from app.providers.embedding_provider import embed_text, embed_texts
 from app.schemas.paper import Paper
 
 logger = get_logger(__name__)
@@ -17,7 +18,6 @@ def _chunk_paper(paper: Paper) -> list[str]:
 
 def ingest_papers(papers: list[Paper], user_id: str) -> int:
     conn = get_connection()
-    embedder = get_embedder()
     inserted = 0
     logger.info(
         "Ingesting papers", extra={"paper_count": len(papers), "user_id": user_id}
@@ -27,7 +27,7 @@ def ingest_papers(papers: list[Paper], user_id: str) -> int:
             chunks = _chunk_paper(paper)
             if not chunks:
                 continue
-            embeddings = embedder.encode(chunks)
+            embeddings = embed_texts(chunks)
             for chunk_text, embedding in zip(chunks, embeddings):
                 cur.execute(
                     """insert into paper_chunks
@@ -38,7 +38,7 @@ def ingest_papers(papers: list[Paper], user_id: str) -> int:
                         paper.url,
                         paper.source,
                         chunk_text,
-                        embedding,
+                        np.array(embedding, dtype=np.float32),
                         Json(
                             {"year": paper.year, "citation_count": paper.citation_count}
                         ),
@@ -57,11 +57,10 @@ def retrieve_context(
     query: str, user_id: str, top_k: int = 5, min_similarity: float = 0.3
 ) -> list[dict]:
     conn = get_connection()
-    embedder = get_embedder()
     logger.debug(
         "Retrieving context", extra={"query": query, "top_k": top_k, "user_id": user_id}
     )
-    query_embedding = embedder.encode([query])[0]
+    query_embedding = np.array(embed_text(query), dtype=np.float32)
     with conn.cursor() as cur:
         cur.execute(
             "select * from match_paper_chunks(%s::vector, %s, %s)",

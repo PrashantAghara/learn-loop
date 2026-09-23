@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as api_v1_router
+from app.core.config import get_settings
 from app.core.database import get_connection
 from app.core.logging_config import get_logger, setup_logging
 from app.models.clients import get_embedder, get_llm, get_mem0_client
@@ -11,6 +12,7 @@ from app.models.clients import get_embedder, get_llm, get_mem0_client
 logger = get_logger(__name__)
 
 setup_logging()
+settings = get_settings()
 
 
 @asynccontextmanager
@@ -29,7 +31,7 @@ app = FastAPI(title="Learn Loop", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[settings.frontend_url, "http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
