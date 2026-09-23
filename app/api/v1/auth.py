@@ -56,7 +56,7 @@ def auth_callback(request: Request, code: str = Query(...)):
         {"auth_code": code, "code_verifier": verifier}
     )
     redirect = RedirectResponse(
-        f"{settings.frontend_url}/auth/callback#access_token={session.session.access_token}"
+        f"{settings.frontend_url}/#access_token={session.session.access_token}"
         f"&user_id={session.user.id}&email={session.user.email}"
     )
     redirect.delete_cookie(COOKIE_NAME)
