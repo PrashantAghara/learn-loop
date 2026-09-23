@@ -4,6 +4,7 @@ from langchain_groq import ChatGroq
 from mem0 import MemoryClient
 
 from app.core.config import get_settings
+from app.providers.embedding_provider import embed_text, embed_texts
 
 
 @lru_cache
@@ -13,6 +14,12 @@ def get_llm() -> ChatGroq:
     return ChatGroq(
         model="openai/gpt-oss-120b", temperature=0.3, api_key=settings.groq_api_key
     )
+
+
+@lru_cache
+def get_embedder():
+    """Returns the embedding functions for use across the application."""
+    return {"embed_text": embed_text, "embed_texts": embed_texts}
 
 
 @lru_cache
