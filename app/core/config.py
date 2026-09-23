@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     mem0_api_key: str
     tavily_api_key: str
     semantic_scholar_api_key: str = ""
+    hf_token: str = ""
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
 
