@@ -16,13 +16,12 @@ logger = get_logger(__name__)
 
 
 def classify_intent(state: LearnLoopState) -> LearnLoopState:
-    logger.debug("Classifying intent", extra={"user_input": state["user_input"][:100]})
     llm = get_llm()
     context_hint = ""
     if state.get("conversation_id"):
         last_topic = get_last_topic(state["conversation_id"])
         if last_topic:
-            context_hint = f"\n\nFor context, the last topic discussed was '{last_topic}'. If this message is a vague follow-up (e.g. 'tell me more', 'explain that'), resolve the topic using this context."
+            context_hint = f"\n\nFor context, the last topic discussed was '{last_topic}'. If this message is a vague follow-up, resolve the topic using this context."
     response = llm.invoke(
         [
             {"role": "system", "content": INTENT_SYSTEM_PROMPT + context_hint},
@@ -30,32 +29,26 @@ def classify_intent(state: LearnLoopState) -> LearnLoopState:
         ]
     )
     parsed = parse_json_response(response.content)
-    logger.info(
-        "Intent classified",
-        extra={"intent": parsed["intent"], "topic": parsed["topic"]},
-    )
-    return {**state, "intent": parsed["intent"], "topic": parsed["topic"]}
+    topics = parsed.get("topics") or ([parsed["topic"]] if parsed.get("topic") else [])
+    return {**state, "intent": parsed["intent"], "topics": topics}
 
 
 def check_sources_node(state: LearnLoopState) -> LearnLoopState:
-    logger.debug("Checking sources", extra={"topic": state["topic"]})
-    sources = retrieve_context(state["topic"], user_id=state["user_id"], top_k=1)
-    has_sources = bool(sources)
-    logger.info(
-        "Source check complete",
-        extra={"topic": state["topic"], "has_sources": has_sources},
-    )
-    return {**state, "has_sources": has_sources}
+    missing = [
+        t
+        for t in state["topics"]
+        if not retrieve_context(t, user_id=state["user_id"], top_k=1)
+    ]
+    return {**state, "has_sources": len(missing) == 0}
 
 
 def research_agent_node(state: LearnLoopState) -> LearnLoopState:
-    logger.info("Starting research agent", extra={"topic": state["topic"]})
-    result = research_with_agent(state["topic"])
-    logger.info(
-        "Research agent complete",
-        extra={"topic": state["topic"], "papers_found": len(result["papers"])},
-    )
-    return {**state, "papers": result["papers"], "agent_summary": result["summary"]}
+    all_papers, summaries = [], []
+    for topic in state["topics"]:
+        result = research_with_agent(topic)
+        all_papers.extend(result["papers"])
+        summaries.append(f"'{topic}': {result['summary']}")
+    return {**state, "papers": all_papers, "agent_summary": "\n\n".join(summaries)}
 
 
 def ingest_node(state: LearnLoopState) -> LearnLoopState:
@@ -88,58 +81,35 @@ def format_research_response(state: LearnLoopState) -> LearnLoopState:
 
 
 def explain_node(state: LearnLoopState) -> LearnLoopState:
-    logger.info(
-        "Generating explanation",
-        extra={"topic": state["topic"], "user_id": state["user_id"]},
-    )
-    result = explain_with_self_correction(state["topic"], user_id=state["user_id"])
-    image_path = generate_diagram(state["topic"], result["explanation"])
-    logger.info(
-        "Explanation generated",
-        extra={"topic": state["topic"], "image_path": image_path},
-    )
+    result = explain_with_self_correction(state["topics"], user_id=state["user_id"])
+    image_path = generate_diagram(", ".join(state["topics"]), result["explanation"])
     return {**state, "response": result["explanation"], "image_path": image_path}
 
 
 def assess_node(state: LearnLoopState) -> LearnLoopState:
-    logger.info(
-        "Generating quiz", extra={"topic": state["topic"], "user_id": state["user_id"]}
-    )
-    questions = generate_quiz(state["topic"], user_id=state["user_id"])
+    all_questions = []
+    for topic in state["topics"]:
+        all_questions.extend(generate_quiz(topic, user_id=state["user_id"]))
     quiz_id = create_quiz_session(
-        state["topic"],
+        ", ".join(state["topics"]),
         state["user_id"],
-        questions,
+        all_questions,
         conversation_id=state.get("conversation_id"),
-    )
-    logger.info(
-        "Quiz generated",
-        extra={
-            "topic": state["topic"],
-            "quiz_id": quiz_id,
-            "question_count": len(questions),
-        },
     )
     return {
         **state,
-        "response": f"Quiz ready: {len(questions)} questions.",
+        "response": f"Quiz ready: {len(all_questions)} questions.",
         "quiz_id": quiz_id,
     }
 
 
 def auto_research_node(state: LearnLoopState) -> LearnLoopState:
-    """Deterministic research (all 4 structured sources, no LLM tool-choice involved) —
-    used only when explain/assess find no existing RAG coverage. Unlike research_agent_node
-    (the tool-calling agent for explicit 'research' requests), this always populates papers
-    reliably instead of depending on the model choosing to call the right tool."""
-    logger.info("Starting auto research", extra={"topic": state["topic"]})
-    papers = research_topic(state["topic"])
-    logger.info(
-        "Auto research complete",
-        extra={"topic": state["topic"], "papers_found": len(papers)},
-    )
+    all_papers = []
+    for topic in state["topics"]:
+        if not retrieve_context(topic, user_id=state["user_id"], top_k=1):
+            all_papers.extend(research_topic(topic))
     return {
         **state,
-        "papers": papers,
-        "agent_summary": f"Auto-researched {len(papers)} papers for grounding.",
+        "papers": all_papers,
+        "agent_summary": f"Auto-researched {len(all_papers)} papers across {len(state['topics'])} topic(s).",
     }

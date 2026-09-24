@@ -1,30 +1,39 @@
-from app.core.logging_config import get_logger
 from app.models.clients import get_llm
 from app.models.prompts.explainer import CRITIQUE_SYSTEM_PROMPT, EXPLAINER_SYSTEM_PROMPT
 from app.services.memory_service import get_learner_context, store_correction
 from app.services.rag_service import retrieve_context
 
-logger = get_logger(__name__)
 
-
-def _generate_explanation(topic: str, user_id: str) -> dict:
-    logger.info("Generating explanation", extra={"topic": topic, "user_id": user_id})
+def _generate_explanation(topics: list[str], user_id: str) -> dict:
     llm = get_llm()
-    sources = retrieve_context(topic, user_id=user_id, top_k=5)
-    source_text = "\n\n".join(
-        f"[{s['paper_title']}]: {s['chunk_text']}" for s in sources
-    )
-    learner_context = get_learner_context(topic, user_id=user_id)
+    all_sources = []
+    source_sections = []
+    for topic in topics:
+        sources = retrieve_context(topic, user_id=user_id, top_k=5)
+        all_sources.extend(sources)
+        section = "\n\n".join(
+            f"[{s['paper_title']}]: {s['chunk_text']}" for s in sources
+        )
+        source_sections.append(f"--- Sources for '{topic}' ---\n{section}")
+    source_text = "\n\n".join(source_sections)
 
-    prompt = f"""Topic: {topic}
+    learner_context = get_learner_context(", ".join(topics), user_id=user_id)
+
+    if len(topics) > 1:
+        task = (
+            f"Explain each of these topics individually: {', '.join(topics)}. "
+            f"Then explicitly address how they compare or relate to each other."
+        )
+    else:
+        task = f"Explain this topic: {topics[0]}"
+
+    prompt = f"""{task}
 
 Retrieved source material:
 {source_text}
 
 What I know about this learner:
-{learner_context}
-
-Explain this topic to the learner now."""
+{learner_context}"""
 
     response = llm.invoke(
         [
@@ -32,11 +41,7 @@ Explain this topic to the learner now."""
             {"role": "user", "content": prompt},
         ]
     )
-    logger.debug(
-        "Explanation generated",
-        extra={"topic": topic, "explanation_length": len(response.content)},
-    )
-    return {"explanation": response.content, "sources": sources}
+    return {"explanation": response.content, "sources": all_sources}
 
 
 def _critique(explanation: str, sources: list[dict]) -> str:
@@ -55,27 +60,15 @@ def _critique(explanation: str, sources: list[dict]) -> str:
 
 
 def explain_with_self_correction(
-    topic: str, user_id: str, max_retries: int = 3
+    topics: list[str], user_id: str, max_retries: int = 3
 ) -> dict:
-    logger.info(
-        "Starting explanation with self-correction",
-        extra={"topic": topic, "user_id": user_id},
-    )
     llm = get_llm()
-    result = _generate_explanation(topic, user_id)
+    result = _generate_explanation(topics, user_id)
 
     for attempt in range(max_retries):
         verdict = _critique(result["explanation"], result["sources"])
         if verdict.upper().startswith("PASS"):
-            logger.info(
-                "Explanation passed critique",
-                extra={"topic": topic, "attempt": attempt + 1},
-            )
             return result
-        logger.warning(
-            "Critique flagged issue",
-            extra={"topic": topic, "attempt": attempt + 1, "verdict": verdict},
-        )
         response = llm.invoke(
             [
                 {"role": "system", "content": EXPLAINER_SYSTEM_PROMPT},
@@ -89,18 +82,9 @@ def explain_with_self_correction(
 
     final_verdict = _critique(result["explanation"], result["sources"])
     if not final_verdict.upper().startswith("PASS"):
-        logger.warning(
-            "Explanation unresolved after max retries",
-            extra={"topic": topic, "verdict": final_verdict},
-        )
+        print(f"⚠️ Still unresolved after {max_retries} revisions: {final_verdict}")
     return result
 
 
 def record_reaction(topic: str, user_id: str, reaction: str) -> None:
-    """Called once the user's HITL reaction arrives as its own request —
-    no longer a blocking input() call like the notebook version."""
-    logger.info(
-        "Recording user reaction",
-        extra={"topic": topic, "user_id": user_id, "reaction": reaction[:100]},
-    )
     store_correction(topic, reaction, user_id=user_id)

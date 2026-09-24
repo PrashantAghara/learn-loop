@@ -32,9 +32,10 @@ ACTION_LABELS = {
 
 def _serialize_result(state: dict) -> dict:
     image_path = state.get("image_path")
+    topics = state.get("topics") or []
     result = {
         "intent": state.get("intent"),
-        "topic": state.get("topic"),
+        "topic": ", ".join(topics) if topics else None,
         "response": state.get("response"),
         "image_path": f"/learn/image/{os.path.basename(image_path)}"
         if image_path

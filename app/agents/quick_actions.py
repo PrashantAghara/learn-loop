@@ -72,23 +72,11 @@ def quiz_on_context(conversation_id: str, user_id: str) -> dict:
 def explain_related(conversation_id: str, user_id: str) -> dict:
     topics = get_topics(conversation_id)
     if not topics:
-        logger.info(
-            "Explain related: no topics found",
-            extra={"conversation_id": conversation_id},
-        )
         return {
             "intent": "explain",
             "topic": None,
             "response": "Nothing to build on yet — ask something first.",
         }
-    logger.info(
-        "Finding related concept",
-        extra={
-            "conversation_id": conversation_id,
-            "topics": topics,
-            "user_id": user_id,
-        },
-    )
     llm = get_llm()
     suggestion = llm.invoke(
         [
@@ -101,6 +89,5 @@ def explain_related(conversation_id: str, user_id: str) -> dict:
         ]
     )
     new_topic = suggestion.content.strip()
-    logger.info("Related concept suggested", extra={"new_topic": new_topic})
-    result = explain_with_self_correction(new_topic, user_id=user_id)
+    result = explain_with_self_correction([new_topic], user_id=user_id)
     return {"intent": "explain", "topic": new_topic, "response": result["explanation"]}
