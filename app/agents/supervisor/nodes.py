@@ -61,7 +61,7 @@ def ingest_node(state: LearnLoopState) -> LearnLoopState:
         return state
     inserted = ingest_papers(papers, user_id=state["user_id"])
     logger.info(
-        "Ingested papers", extra={"topic": state["topic"], "chunks_inserted": inserted}
+        "Ingested papers", extra={"topic": state.get("topic"), "chunks_inserted": inserted}
     )
     return state
 
