@@ -1,27 +1,35 @@
-import os
-
-from langchain_tavily import TavilySearch
+import httpx
 
 from app.core.config import get_settings
 from app.core.logging_config import get_logger
 from app.schemas.paper import Paper
 
 logger = get_logger(__name__)
+TAVILY_BASE = "https://api.tavily.com/search"
 
 
-def search_tavily(query: str, max_results: int = 5) -> list[Paper]:
+async def search_tavily(query: str, max_results: int = 5) -> list[Paper]:
     settings = get_settings()
-    os.environ.setdefault("TAVILY_API_KEY", settings.tavily_api_key)
 
     logger.debug("Searching Tavily", extra={"query": query, "max_results": max_results})
     try:
-        tool = TavilySearch(max_results=max_results, topic="general")
-        result = tool.invoke({"query": query})
-    except Exception as e:  # noqa: BLE001
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                TAVILY_BASE,
+                json={
+                    "query": query,
+                    "max_results": max_results,
+                    "topic": "general",
+                    "api_key": settings.tavily_api_key,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
         logger.warning("Tavily search failed", extra={"query": query, "error": str(e), "type": type(e).__name__})
         return []
 
-    entries = result.get("results", []) if isinstance(result, dict) else []
+    entries = data.get("results", [])
     results = [
         Paper(
             title=r.get("title") or "Untitled",

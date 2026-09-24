@@ -1,4 +1,4 @@
-import requests
+import httpx
 
 from app.core.logging_config import get_logger
 from app.schemas.paper import Paper
@@ -10,7 +10,7 @@ WIKIPEDIA_HEADERS = {
 }
 
 
-def search_wikipedia(query: str, max_results: int = 2) -> list[Paper]:
+async def search_wikipedia(query: str, max_results: int = 2) -> list[Paper]:
     params = {
         "action": "query",
         "generator": "search",
@@ -24,12 +24,13 @@ def search_wikipedia(query: str, max_results: int = 2) -> list[Paper]:
     }
     logger.debug("Searching Wikipedia", extra={"query": query, "max_results": max_results})
     try:
-        resp = requests.get(
-            WIKIPEDIA_API_BASE, params=params, headers=WIKIPEDIA_HEADERS, timeout=15
-        )
-        resp.raise_for_status()
-        pages = resp.json().get("query", {}).get("pages", {})
-    except Exception as e:  # noqa: BLE001
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                WIKIPEDIA_API_BASE, params=params, headers=WIKIPEDIA_HEADERS
+            )
+            resp.raise_for_status()
+            pages = resp.json().get("query", {}).get("pages", {})
+    except httpx.HTTPError as e:
         logger.warning("Wikipedia search failed", extra={"query": query, "error": str(e), "type": type(e).__name__})
         return []
 

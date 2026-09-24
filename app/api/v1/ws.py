@@ -30,7 +30,7 @@ ACTION_LABELS = {
 }
 
 
-def _serialize_result(state: dict) -> dict:
+async def _serialize_result(state: dict) -> dict:
     image_path = state.get("image_path")
     topics = state.get("topics") or []
     result = {
@@ -44,9 +44,10 @@ def _serialize_result(state: dict) -> dict:
     }
     if state.get("quiz_id"):
         session = get_quiz_session(state["quiz_id"])
-        result["questions"] = [
-            {"question": q["question"]} for q in session["questions"]
-        ]
+        if session:
+            result["questions"] = [
+                {"question": q["question"]} for q in session["questions"]
+            ]
     return result
 
 
@@ -75,7 +76,7 @@ async def learn_websocket(websocket: WebSocket):
                             {"type": "auth_error", "detail": "Missing token in payload"}
                         )
                         continue
-                    user_id = verify_token(token)
+                    user_id = await verify_token(token)
                 except ValueError as e:
                     logger.warning(
                         "WebSocket token verification failed", extra={"error": str(e)}
@@ -122,14 +123,15 @@ async def learn_websocket(websocket: WebSocket):
                         )
                         continue
 
-                    result = handlers[action]()
+                    result = await handlers[action]()
                     if result.get("quiz_id"):
-                        session = get_quiz_session(result["quiz_id"])
-                        result["questions"] = [
-                            {"question": q["question"]} for q in session["questions"]
-                        ]
+                        session = await get_quiz_session(result["quiz_id"])
+                        if session:
+                            result["questions"] = [
+                                {"question": q["question"]} for q in session["questions"]
+                            ]
                     if conversation_id:
-                        record_turn(conversation_id, f"[{action}]", result)
+                        await record_turn(conversation_id, f"[{action}]", result)
                     await websocket.send_json(
                         {"type": "result", "conversation_id": conversation_id, **result}
                     )
@@ -137,7 +139,7 @@ async def learn_websocket(websocket: WebSocket):
 
                 user_message = payload.get("message")
                 if not conversation_id:
-                    conversation_id = start_conversation(user_id, user_message)
+                    conversation_id = await start_conversation(user_id, user_message)
                     logger.info(
                         "Created new conversation",
                         extra={"conversation_id": conversation_id, "user_id": user_id},
@@ -180,8 +182,8 @@ async def learn_websocket(websocket: WebSocket):
                             }
                         )
 
-                result = _serialize_result(final_state)
-                record_turn(conversation_id, user_message, result)
+                result = await _serialize_result(final_state)
+                await record_turn(conversation_id, user_message, result)
                 logger.info(
                     "Message processing complete",
                     extra={

@@ -11,10 +11,12 @@ const APP_NAME = "Learn Loop";
 
 export default function ChatPage() {
   const { email, logout } = useAuth();
-  const { conversations, refresh } = useConversations();
+  const { conversations, refresh, loading, error } = useConversations();
   const {
     messages,
     phase,
+    connected,
+    reconnecting,
     conversationId,
     sendMessage,
     sendAction,
@@ -31,11 +33,19 @@ export default function ChatPage() {
           activeId={conversationId}
           onNewChat={startNewChat}
           onSelect={loadConversation}
+          loading={loading}
+          error={error}
+          onRetry={refresh}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
+          {!connected && reconnecting && (
+            <div className="px-4 py-2 text-center text-xs text-[var(--text-muted)] bg-[var(--surface)] border-b border-[var(--border)]">
+              Reconnecting…
+            </div>
+          )}
           <MessageList messages={messages} phase={phase} />
-          <QuickActions onAction={sendAction} disabled={!!phase} />
-          <ChatInput onSend={sendMessage} disabled={!!phase} />
+          <QuickActions onAction={sendAction} disabled={!!phase || !connected} />
+          <ChatInput onSend={sendMessage} disabled={!!phase || !connected} />
         </div>
       </div>
     </div>

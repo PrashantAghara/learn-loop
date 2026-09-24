@@ -9,10 +9,10 @@ from app.providers.quiz_provider import (
 )
 
 
-def create_quiz_session(
+async def create_quiz_session(
     topic: str, user_id: str, questions: list[dict], conversation_id: str | None = None
 ) -> str:
-    return _create(
+    return await _create(
         user_id=user_id,
         topic=topic,
         questions=questions,
@@ -20,9 +20,9 @@ def create_quiz_session(
     )
 
 
-def get_quiz_session(quiz_id: str) -> dict | None:
-    return _get(quiz_id)
+async def get_quiz_session(quiz_id: str) -> dict | None:
+    return await _get(quiz_id)
 
 
-def submit_quiz_session(quiz_id: str, results: list[dict]) -> None:
-    _submit(quiz_id, results)
+async def submit_quiz_session(quiz_id: str, results: list[dict]) -> None:
+    await _submit(quiz_id, results)

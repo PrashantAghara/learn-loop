@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -21,3 +24,24 @@ class ReactionRequest(BaseModel):
 
 class QuizSubmission(BaseModel):
     answers: list[str]
+
+
+class ConversationCreate(BaseModel):
+    title: str
+
+
+class ConversationResponse(BaseModel):
+    id: str
+    title: str
+    updated_at: datetime
+
+
+class MessageItem(BaseModel):
+    role: str
+    content: str
+    metadata: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class ConversationMessagesResponse(BaseModel):
+    messages: list[MessageItem]

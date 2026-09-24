@@ -1,14 +1,14 @@
 import os
 import urllib.parse
 
-import requests
+import httpx
 
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-def fetch_generated_image(
+async def fetch_generated_image(
     prompt: str, out_dir: str = "images_out", filename: str = "image.png"
 ) -> str | None:
     os.makedirs(out_dir, exist_ok=True)
@@ -17,9 +17,10 @@ def fetch_generated_image(
 
     logger.info("Generating image", extra={"image_filename": filename})
     try:
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
-    except Exception as e:  # noqa: BLE001
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+    except httpx.HTTPError as e:
         logger.warning("Image generation failed", extra={"image_filename": filename, "error": str(e), "type": type(e).__name__})
         return None
 

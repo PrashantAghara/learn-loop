@@ -15,11 +15,11 @@ from app.services.research_service import research_topic
 logger = get_logger(__name__)
 
 
-def classify_intent(state: LearnLoopState) -> LearnLoopState:
+async def classify_intent(state: LearnLoopState) -> LearnLoopState:
     llm = get_llm()
     context_hint = ""
     if state.get("conversation_id"):
-        last_topic = get_last_topic(state["conversation_id"])
+        last_topic = await get_last_topic(state["conversation_id"])
         if last_topic:
             context_hint = f"\n\nFor context, the last topic discussed was '{last_topic}'. If this message is a vague follow-up, resolve the topic using this context."
     response = llm.invoke(
@@ -33,16 +33,16 @@ def classify_intent(state: LearnLoopState) -> LearnLoopState:
     return {**state, "intent": parsed["intent"], "topics": topics}
 
 
-def check_sources_node(state: LearnLoopState) -> LearnLoopState:
+async def check_sources_node(state: LearnLoopState) -> LearnLoopState:
     missing = [
         t
         for t in state["topics"]
-        if not retrieve_context(t, user_id=state["user_id"], top_k=1)
+        if not await retrieve_context(t, user_id=state["user_id"], top_k=1)
     ]
     return {**state, "has_sources": len(missing) == 0}
 
 
-def research_agent_node(state: LearnLoopState) -> LearnLoopState:
+async def research_agent_node(state: LearnLoopState) -> LearnLoopState:
     all_papers, summaries = [], []
     for topic in state["topics"]:
         result = research_with_agent(topic)
@@ -51,7 +51,7 @@ def research_agent_node(state: LearnLoopState) -> LearnLoopState:
     return {**state, "papers": all_papers, "agent_summary": "\n\n".join(summaries)}
 
 
-def ingest_node(state: LearnLoopState) -> LearnLoopState:
+async def ingest_node(state: LearnLoopState) -> LearnLoopState:
     papers = state.get("papers") or []
     if not papers:
         logger.warning(
@@ -59,14 +59,14 @@ def ingest_node(state: LearnLoopState) -> LearnLoopState:
             extra={"topic": state.get("topic")},
         )
         return state
-    inserted = ingest_papers(papers, user_id=state["user_id"])
+    inserted = await ingest_papers(papers, user_id=state["user_id"])
     logger.info(
         "Ingested papers", extra={"topic": state.get("topic"), "chunks_inserted": inserted}
     )
     return state
 
 
-def format_research_response(state: LearnLoopState) -> LearnLoopState:
+async def format_research_response(state: LearnLoopState) -> LearnLoopState:
     response = state.get("agent_summary", "")
     if state.get("papers"):
         paper_list = "\n".join(
@@ -80,17 +80,17 @@ def format_research_response(state: LearnLoopState) -> LearnLoopState:
     return {**state, "response": response}
 
 
-def explain_node(state: LearnLoopState) -> LearnLoopState:
+async def explain_node(state: LearnLoopState) -> LearnLoopState:
     result = explain_with_self_correction(state["topics"], user_id=state["user_id"])
-    image_path = generate_diagram(", ".join(state["topics"]), result["explanation"])
+    image_path = await generate_diagram(", ".join(state["topics"]), result["explanation"])
     return {**state, "response": result["explanation"], "image_path": image_path}
 
 
-def assess_node(state: LearnLoopState) -> LearnLoopState:
+async def assess_node(state: LearnLoopState) -> LearnLoopState:
     all_questions = []
     for topic in state["topics"]:
         all_questions.extend(generate_quiz(topic, user_id=state["user_id"]))
-    quiz_id = create_quiz_session(
+    quiz_id = await create_quiz_session(
         ", ".join(state["topics"]),
         state["user_id"],
         all_questions,
@@ -103,11 +103,11 @@ def assess_node(state: LearnLoopState) -> LearnLoopState:
     }
 
 
-def auto_research_node(state: LearnLoopState) -> LearnLoopState:
+async def auto_research_node(state: LearnLoopState) -> LearnLoopState:
     all_papers = []
     for topic in state["topics"]:
-        if not retrieve_context(topic, user_id=state["user_id"], top_k=1):
-            all_papers.extend(research_topic(topic))
+        if not await retrieve_context(topic, user_id=state["user_id"], top_k=1):
+            all_papers.extend(await research_topic(topic))
     return {
         **state,
         "papers": all_papers,

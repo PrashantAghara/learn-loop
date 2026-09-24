@@ -6,7 +6,7 @@ from app.providers.imagegen_provider import fetch_generated_image
 logger = get_logger(__name__)
 
 
-def generate_diagram(topic: str, explanation: str) -> str | None:
+async def generate_diagram(topic: str, explanation: str) -> str | None:
     logger.info("Generating diagram", extra={"topic": topic})
     llm = get_llm()
     response = llm.invoke(
@@ -20,4 +20,4 @@ def generate_diagram(topic: str, explanation: str) -> str | None:
     )
     prompt = response.content.strip()
     logger.debug("Image prompt generated", extra={"topic": topic, "prompt_length": len(prompt)})
-    return fetch_generated_image(prompt, filename=f"{topic.replace(' ', '_')}.png")
+    return await fetch_generated_image(prompt, filename=f"{topic.replace(' ', '_')}.png")

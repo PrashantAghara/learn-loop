@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
+import { AuthProvider } from "./context/AuthProvider";
+import { ThemeProvider } from "./context/ThemeProvider";
 import { useAuth } from "./hooks/useAuth";
 import LoginPage from "./pages/LoginPage";
 import AuthCallbackPage from "./pages/AuthCallbackPage";

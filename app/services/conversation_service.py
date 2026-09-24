@@ -10,7 +10,7 @@ from app.providers.conversation_provider import (
 logger = get_logger(__name__)
 
 
-def start_conversation(user_id: str, first_message: str) -> str:
+async def start_conversation(user_id: str, first_message: str) -> str:
     logger.info("Starting new conversation", extra={"user_id": user_id, "first_message": first_message[:100]})
     llm = get_llm()
     response = llm.invoke(
@@ -23,17 +23,17 @@ def start_conversation(user_id: str, first_message: str) -> str:
         ]
     )
     title = response.content.strip()
-    conversation_id = create_conversation(user_id, title)
+    conversation_id = await create_conversation(user_id, title)
     logger.info("Conversation created", extra={"user_id": user_id, "conversation_id": conversation_id, "title": title})
     return conversation_id
 
 
-def record_turn(
+async def record_turn(
     conversation_id: str, user_message: str, assistant_result: dict
 ) -> None:
     logger.debug("Recording conversation turn", extra={"conversation_id": conversation_id, "intent": assistant_result.get("intent")})
-    add_message(conversation_id, "user", user_message)
-    add_message(
+    await add_message(conversation_id, "user", user_message)
+    await add_message(
         conversation_id,
         "assistant",
         assistant_result.get("response", ""),
@@ -46,27 +46,27 @@ def record_turn(
     )
 
 
-def get_history(conversation_id: str) -> list[dict]:
+async def get_history(conversation_id: str) -> list[dict]:
     logger.debug("Fetching conversation history", extra={"conversation_id": conversation_id})
-    return get_messages(conversation_id)
+    return await get_messages(conversation_id)
 
 
-def get_topics(conversation_id: str) -> list[str]:
+async def get_topics(conversation_id: str) -> list[str]:
     """Every distinct topic discussed so far — this is what makes 'quiz me on this
     conversation' span everything, not just the last message."""
     topics = []
-    for m in get_messages(conversation_id):
+    for m in await get_messages(conversation_id):
         topic = (m.get("metadata") or {}).get("topic")
         if topic and topic not in topics:
             topics.append(topic)
     return topics
 
 
-def get_last_topic(conversation_id: str) -> str | None:
-    topics = get_topics(conversation_id)
+async def get_last_topic(conversation_id: str) -> str | None:
+    topics = await get_topics(conversation_id)
     return topics[-1] if topics else None
 
 
-def list_user_conversations(user_id: str) -> list[dict]:
+async def list_user_conversations(user_id: str) -> list[dict]:
     logger.debug("Listing user conversations", extra={"user_id": user_id})
-    return list_conversations(user_id)
+    return await list_conversations(user_id)

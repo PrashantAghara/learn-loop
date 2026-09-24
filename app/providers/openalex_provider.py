@@ -1,4 +1,4 @@
-import requests
+import httpx
 
 from app.core.config import get_settings
 from app.core.logging_config import get_logger
@@ -18,7 +18,7 @@ def _reconstruct_abstract(inverted_index: dict | None) -> str | None:
     return " ".join(positions[i] for i in sorted(positions))
 
 
-def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
+async def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
     settings = get_settings()
     params = {
         "search": query,
@@ -28,9 +28,11 @@ def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
     }
     logger.debug("Searching OpenAlex", extra={"query": query, "max_results": max_results})
     try:
-        resp = requests.get(OPENALEX_BASE, params=params, timeout=15)
-        resp.raise_for_status()
-    except Exception as e:  # noqa: BLE001
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(OPENALEX_BASE, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
         logger.warning("OpenAlex search failed", extra={"query": query, "error": str(e), "type": type(e).__name__})
         return []
 
@@ -45,7 +47,7 @@ def search_openalex(query: str, max_results: int = 5) -> list[Paper]:
             citation_count=w.get("cited_by_count"),
             source="openalex",
         )
-        for w in resp.json()["results"]
+        for w in data.get("results", [])
     ]
     logger.info("OpenAlex search complete", extra={"query": query, "results": len(results)})
     return results

@@ -1,37 +1,51 @@
-import psycopg2
-from pgvector.psycopg2 import register_vector
-from psycopg2.extensions import connection as PGConnection
+import asyncpg
+from pgvector.asyncpg import register_vector
 
 from app.core.config import get_settings
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
-_connection: PGConnection | None = None
+_pool: asyncpg.Pool | None = None
 
 
-def _create_connection() -> PGConnection:
+async def _create_pool() -> asyncpg.Pool:
     settings = get_settings()
-    logger.info("Creating database connection")
-    conn = psycopg2.connect(
+    logger.info("Creating database connection pool")
+    pool = await asyncpg.create_pool(
         settings.supabase_db_url,
-        connect_timeout=10,
-        options="-c statement_timeout=15000",
+        min_size=2,
+        max_size=10,
+        command_timeout=15,
+        init=_register_vector,
     )
-    conn.autocommit = True
-    register_vector(conn)
-    logger.info("Database connection established")
-    return conn
+    logger.info("Database connection pool established")
+    return pool
 
 
-def get_connection() -> PGConnection:
-    global _connection
-    if _connection is None:
-        _connection = _create_connection()
-        return _connection
-    try:
-        with _connection.cursor() as cur:
-            cur.execute("select 1")
-    except Exception:  # noqa: BLE001
-        logger.warning("Database connection lost, reconnecting")
-        _connection = _create_connection()
-    return _connection
+async def _register_vector(conn: asyncpg.Connection) -> None:
+    await register_vector(conn)
+
+
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await _create_pool()
+    return _pool
+
+
+async def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
+        logger.info("Database connection pool closed")
+
+
+async def get_connection() -> asyncpg.Connection:
+    pool = await get_pool()
+    return await pool.acquire()
+
+
+async def release_connection(conn: asyncpg.Connection) -> None:
+    pool = await get_pool()
+    await pool.release(conn)

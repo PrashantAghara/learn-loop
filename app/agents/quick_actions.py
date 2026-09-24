@@ -10,8 +10,8 @@ from app.services.rag_service import ingest_papers
 logger = get_logger(__name__)
 
 
-def continue_research(conversation_id: str, user_id: str) -> dict:
-    topic = get_last_topic(conversation_id)
+async def continue_research(conversation_id: str, user_id: str) -> dict:
+    topic = await get_last_topic(conversation_id)
     if not topic:
         logger.info(
             "Continue research: no topic found",
@@ -30,12 +30,12 @@ def continue_research(conversation_id: str, user_id: str) -> dict:
         f"{topic} (find additional or more recent sources beyond what's already covered)"
     )
     if result["papers"]:
-        ingest_papers(result["papers"], user_id=user_id)
+        await ingest_papers(result["papers"], user_id=user_id)
     return {"intent": "research", "topic": topic, "response": result["summary"]}
 
 
-def quiz_on_context(conversation_id: str, user_id: str) -> dict:
-    topics = get_topics(conversation_id)
+async def quiz_on_context(conversation_id: str, user_id: str) -> dict:
+    topics = await get_topics(conversation_id)
     if not topics:
         logger.info(
             "Quiz on context: no topics found",
@@ -58,7 +58,7 @@ def quiz_on_context(conversation_id: str, user_id: str) -> dict:
     for topic in topics:
         all_questions.extend(generate_quiz(topic, user_id=user_id, n=2))
     combined_topic = ", ".join(topics)
-    quiz_id = create_quiz_session(
+    quiz_id = await create_quiz_session(
         combined_topic, user_id, all_questions, conversation_id=conversation_id
     )
     return {
@@ -69,8 +69,8 @@ def quiz_on_context(conversation_id: str, user_id: str) -> dict:
     }
 
 
-def explain_related(conversation_id: str, user_id: str) -> dict:
-    topics = get_topics(conversation_id)
+async def explain_related(conversation_id: str, user_id: str) -> dict:
+    topics = await get_topics(conversation_id)
     if not topics:
         return {
             "intent": "explain",

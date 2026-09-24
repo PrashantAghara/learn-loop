@@ -1,4 +1,5 @@
 import arxiv
+import asyncio
 
 from app.core.logging_config import get_logger
 from app.schemas.paper import Paper
@@ -6,7 +7,7 @@ from app.schemas.paper import Paper
 logger = get_logger(__name__)
 
 
-def search_arxiv(query: str, max_results: int = 5) -> list[Paper]:
+def _search_arxiv_sync(query: str, max_results: int = 5) -> list[Paper]:
     logger.debug("Searching arXiv", extra={"query": query, "max_results": max_results})
     client = arxiv.Client(page_size=max_results, delay_seconds=3.0, num_retries=2)
     search = arxiv.Search(
@@ -30,3 +31,7 @@ def search_arxiv(query: str, max_results: int = 5) -> list[Paper]:
     except Exception as e:  # noqa: BLE001
         logger.warning("arXiv search failed", extra={"query": query, "error": str(e), "type": type(e).__name__})
         return []
+
+
+async def search_arxiv(query: str, max_results: int = 5) -> list[Paper]:
+    return await asyncio.to_thread(_search_arxiv_sync, query, max_results)
