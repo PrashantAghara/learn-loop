@@ -23,15 +23,12 @@ async def _fetch_jwks() -> dict:
     if _jwks_cache and time.time() - _jwks_cache_time < _JWKS_TTL:
         return _jwks_cache
 
-    jwks_url = f"{settings.supabase_url}/auth/v1/keys"
+    jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
     logger.debug("Fetching JWKS from Supabase", extra={"jwks_url": jwks_url})
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                jwks_url,
-                headers={"apikey": settings.supabase_publishable_key},
-            )
+            resp = await client.get(jwks_url)
             resp.raise_for_status()
             _jwks_cache = resp.json()
             _jwks_cache_time = time.time()
