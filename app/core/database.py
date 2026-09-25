@@ -16,6 +16,7 @@ async def _create_pool() -> asyncpg.Pool:
         min_size=2,
         max_size=10,
         command_timeout=15,
+        statement_cache_size=0,
         init=_register_vector,
     )
     logger.info("Database connection pool established")
