@@ -12,17 +12,17 @@ router = APIRouter(prefix="/learn", tags=["learn"])
 
 
 @router.post("/message", response_model=MessageResponse)
-def send_message(payload: MessageRequest, user_id: str = Depends(get_current_user_id)):
+async def send_message(payload: MessageRequest, user_id: str = Depends(get_current_user_id)):
     logger.info(
         "Processing message request",
         extra={"user_id": user_id, "message_length": len(payload.message)},
     )
     supervisor = get_supervisor()
-    result = supervisor.invoke({"user_id": user_id, "user_input": payload.message})
+    result = await supervisor.ainvoke({"user_id": user_id, "user_input": payload.message})
 
     questions = None
     if result.get("quiz_id"):
-        session = get_quiz_session(result["quiz_id"])
+        session = await get_quiz_session(result["quiz_id"])
         questions = [
             {"question": q["question"]} for q in session["questions"]
         ]  # expected_answer withheld

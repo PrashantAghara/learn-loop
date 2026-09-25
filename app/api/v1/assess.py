@@ -9,8 +9,8 @@ router = APIRouter(prefix="/assess", tags=["assess"])
 
 
 @router.get("/{quiz_id}")
-def get_quiz(quiz_id: str, user_id: str = Depends(get_current_user_id)):
-    session = get_quiz_session(quiz_id)
+async def get_quiz(quiz_id: str, user_id: str = Depends(get_current_user_id)):
+    session = await get_quiz_session(quiz_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Quiz session not found")
     if session["user_id"] != user_id:
@@ -34,10 +34,10 @@ def get_quiz(quiz_id: str, user_id: str = Depends(get_current_user_id)):
 
 
 @router.post("/{quiz_id}/submit")
-def submit_quiz(
+async def submit_quiz(
     quiz_id: str, payload: QuizSubmission, user_id: str = Depends(get_current_user_id)
 ):
-    session = get_quiz_session(quiz_id)
+    session = await get_quiz_session(quiz_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Quiz session not found or expired")
     if session["user_id"] != user_id:
@@ -55,5 +55,5 @@ def submit_quiz(
         results.append({**q, "learner_answer": submitted_answer, **grade})
 
     outcome = finalize_assessment(session["topic"], user_id, results)
-    submit_quiz_session(quiz_id, results)
+    await submit_quiz_session(quiz_id, results)
     return outcome

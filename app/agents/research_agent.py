@@ -1,7 +1,8 @@
 import os
+import asyncio
 
 from groq import BadRequestError
-from langchain_core.tools import tool
+from langchain_core.tools import StructuredTool
 from langchain_tavily import TavilySearch
 from langgraph.prebuilt import create_react_agent
 
@@ -22,10 +23,9 @@ logger = get_logger(__name__)
 def _make_structured_tools() -> tuple[list[Paper], list]:
     collected: list[Paper] = []
 
-    @tool
-    def arxiv_search(query: str, max_results: int = 5) -> str:
+    async def arxiv_search(query: str, max_results: int = 5) -> str:
         """Search arXiv for preprints. Best for recent, cutting-edge ML/CS research."""
-        papers = search_arxiv(query, max_results)
+        papers = await search_arxiv(query, max_results)
         collected.extend(papers)
         return (
             "\n\n".join(
@@ -34,10 +34,9 @@ def _make_structured_tools() -> tuple[list[Paper], list]:
             or "No results found."
         )
 
-    @tool
-    def openalex_search(query: str, max_results: int = 5) -> str:
+    async def openalex_search(query: str, max_results: int = 5) -> str:
         """Search OpenAlex for academic papers. Broad coverage across all disciplines."""
-        papers = search_openalex(query, max_results)
+        papers = await search_openalex(query, max_results)
         collected.extend(papers)
         return (
             "\n\n".join(
@@ -46,10 +45,9 @@ def _make_structured_tools() -> tuple[list[Paper], list]:
             or "No results found."
         )
 
-    @tool
-    def semantic_scholar_search(query: str, max_results: int = 5) -> str:
+    async def semantic_scholar_search(query: str, max_results: int = 5) -> str:
         """Search Semantic Scholar for academic papers. Strong for CS/AI topics and citation counts."""
-        papers = search_semantic_scholar(query, max_results)
+        papers = await search_semantic_scholar(query, max_results)
         collected.extend(papers)
         return (
             "\n\n".join(
@@ -58,22 +56,23 @@ def _make_structured_tools() -> tuple[list[Paper], list]:
             or "No results found."
         )
 
-    @tool
-    def wikipedia_search(query: str, max_results: int = 2) -> str:
+    async def wikipedia_search(query: str, max_results: int = 2) -> str:
         """Search Wikipedia for background/definitional context on a topic."""
-        papers = search_wikipedia(query, max_results)
+        papers = await search_wikipedia(query, max_results)
         collected.extend(papers)
         return (
             "\n\n".join(f"[{p.title}]: {(p.abstract or '')[:300]}" for p in papers)
             or "No results found."
         )
 
-    return collected, [
-        arxiv_search,
-        openalex_search,
-        semantic_scholar_search,
-        wikipedia_search,
+    tools = [
+        StructuredTool.from_function(coroutine=arxiv_search, name="arxiv_search", description=arxiv_search.__doc__),
+        StructuredTool.from_function(coroutine=openalex_search, name="openalex_search", description=openalex_search.__doc__),
+        StructuredTool.from_function(coroutine=semantic_scholar_search, name="semantic_scholar_search", description=semantic_scholar_search.__doc__),
+        StructuredTool.from_function(coroutine=wikipedia_search, name="wikipedia_search", description=wikipedia_search.__doc__),
     ]
+
+    return collected, tools
 
 
 def _build_agent():
@@ -89,11 +88,11 @@ def _build_agent():
     return agent, collected_papers
 
 
-def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
+async def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
     for attempt in range(max_retries + 1):
         try:
             logger.debug("Invoking research agent", extra={"topic": topic, "attempt": attempt + 1})
-            return agent.invoke(
+            return await agent.ainvoke(
                 {
                     "messages": [
                         {"role": "user", "content": f"Research this topic: {topic}"}
@@ -113,7 +112,7 @@ async def research_with_agent(topic: str) -> dict:
     when Groq's gpt-oss-120b tool-calling becomes unreliable (a known, documented issue)."""
     logger.info("Starting research with agent", extra={"topic": topic})
     agent, collected_papers = _build_agent()
-    result = _invoke_with_retry(agent, topic)
+    result = await _invoke_with_retry(agent, topic)
 
     if result is not None:
         logger.info("Research agent completed", extra={"topic": topic, "papers_collected": len(collected_papers)})

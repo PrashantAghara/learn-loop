@@ -1,5 +1,4 @@
 import json
-import os
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -8,7 +7,6 @@ from app.agents.supervisor.graph import get_supervisor
 from app.core.auth import verify_token
 from app.core.logging_config import get_logger
 from app.services.conversation_service import record_turn, start_conversation
-from app.services.quiz_session_service import get_quiz_session
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["ws"])
@@ -37,13 +35,12 @@ async def _serialize_result(state: dict) -> dict:
         "intent": state.get("intent"),
         "topic": ", ".join(topics) if topics else None,
         "response": state.get("response"),
-        "image_path": f"/learn/image/{os.path.basename(image_path)}"
-        if image_path
-        else None,
+        "image_path": image_path,
         "quiz_id": state.get("quiz_id"),
     }
     if state.get("quiz_id"):
-        session = get_quiz_session(state["quiz_id"])
+        from app.services.quiz_session_service import get_quiz_session
+        session = await get_quiz_session(state["quiz_id"])
         if session:
             result["questions"] = [
                 {"question": q["question"]} for q in session["questions"]
