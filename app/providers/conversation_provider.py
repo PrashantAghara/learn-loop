@@ -30,7 +30,7 @@ async def list_conversations(user_id: str) -> list[dict]:
             "select id, title, updated_at from conversations where user_id = $1 order by updated_at desc",
             user_id,
         )
-        return [dict(row) for row in rows]
+        return [{"id": str(row["id"]), "title": row["title"], "updated_at": row["updated_at"]} for row in rows]
     finally:
         await release_connection(conn)
 
@@ -44,7 +44,9 @@ async def get_conversation(conversation_id: str, user_id: str) -> dict | None:
             conversation_id,
             user_id,
         )
-        return dict(row) if row else None
+        if row:
+            return {"id": str(row["id"]), "title": row["title"], "updated_at": row["updated_at"]}
+        return None
     finally:
         await release_connection(conn)
 
