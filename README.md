@@ -34,11 +34,12 @@ flowchart TD
         MemStore[(mem0 Cloud)]
     end
 
-    subgraph Data["Supabase (Postgres + pgvector)"]
+    subgraph Data["Supabase (Postgres + pgvector + Storage)"]
         RAG[(paper_chunks<br/>RAG Corpus)]
         Conversations[(conversations<br/>+ chat_messages)]
         Quizzes[(quiz_sessions)]
         Auth[Supabase Auth<br/>Google OAuth PKCE]
+        Storage[Supabase Storage<br/>images bucket]
     end
 
     subgraph External
@@ -46,7 +47,7 @@ flowchart TD
         HF[HuggingFace<br/>Embeddings]
         Tavily[Tavily Search]
         Sources[ArXiv / OpenAlex /<br/>Semantic Scholar / Wikipedia]
-        Pollinations[Pollinations.ai<br/>Images]
+        Pollinations[Pollinations.ai<br/>Image Generation]
     end
 
     UI -->|HTTPS| WS
@@ -76,7 +77,11 @@ flowchart TD
     QuickActions -->|retrieve| RAG
     QuickActions -->|context| MemStore
 
-    Explainer -->|diagram| Pollinations
+    Explainer -->|generate prompt| Pollinations
+    Pollinations -->|image bytes| Explainer
+    Explainer -->|upload| Storage
+    Storage -->|public URL| UI
+
     Supervisor -->|store| Conversations
     Assessment -->|store| Quizzes
 
@@ -94,8 +99,6 @@ flowchart TD
 | 🛠️ **Tech Stack** | [docs/tech-stack.md](docs/tech-stack.md) |
 | 🚀 **Local Setup** | [docs/setup.md](docs/setup.md) |
 | 📊 **Database Schema** | [docs/schema.md](docs/schema.md) |
-| 🔌 **API Reference** | [docs/api.md](docs/api.md) |
-| ⚠️ **Known Limitations** | [docs/limitations.md](docs/limitations.md) |
 
 ---
 
