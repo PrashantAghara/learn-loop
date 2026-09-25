@@ -20,9 +20,7 @@ export default function Message({ message }) {
   return (
     <div>
       <MessageBubble role={role}>{text}</MessageBubble>
-      {role === "assistant" && image_path && (
-        <MessageImage src={`${API_BASE}${image_path}`} />
-      )}
+      {role === "assistant" && image_path && <MessageImage src={image_path} />}
       {role === "assistant" && intent === "explain" && topic && (
         <ReactionBar topic={topic} />
       )}

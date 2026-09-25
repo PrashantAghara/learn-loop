@@ -34,11 +34,13 @@ async def classify_intent(state: LearnLoopState) -> LearnLoopState:
 
 
 async def check_sources_node(state: LearnLoopState) -> LearnLoopState:
-    missing = [
-        t
-        for t in state["topics"]
-        if not await retrieve_context(t, user_id=state["user_id"], top_k=1)
-    ]
+    missing = []
+    for topic in state["topics"]:
+        sources = await retrieve_context(
+            topic, user_id=state["user_id"], top_k=3, min_similarity=0.45
+        )
+        if len(sources) < 2:
+            missing.append(topic)
     return {**state, "has_sources": len(missing) == 0}
 
 
@@ -61,7 +63,8 @@ async def ingest_node(state: LearnLoopState) -> LearnLoopState:
         return state
     inserted = await ingest_papers(papers, user_id=state["user_id"])
     logger.info(
-        "Ingested papers", extra={"topic": state.get("topic"), "chunks_inserted": inserted}
+        "Ingested papers",
+        extra={"topic": state.get("topic"), "chunks_inserted": inserted},
     )
     return state
 
@@ -81,8 +84,12 @@ async def format_research_response(state: LearnLoopState) -> LearnLoopState:
 
 
 async def explain_node(state: LearnLoopState) -> LearnLoopState:
-    result = await explain_with_self_correction(state["topics"], user_id=state["user_id"])
-    image_path = await generate_diagram(", ".join(state["topics"]), result["explanation"])
+    result = await explain_with_self_correction(
+        state["topics"], user_id=state["user_id"]
+    )
+    image_path = await generate_diagram(
+        ", ".join(state["topics"]), result["explanation"]
+    )
     return {**state, "response": result["explanation"], "image_path": image_path}
 
 
