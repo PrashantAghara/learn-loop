@@ -57,7 +57,6 @@
 |-----------|----------|--------|
 | **Backend** | Render (Docker) | `Dockerfile` |
 | **Frontend** | Vercel | `vercel.json` |
-| **CI/CD** | GitHub Actions | Lint + build + Docker verify on PR; deploy hooks on `main` |
 
 ## Environment Variables
 
