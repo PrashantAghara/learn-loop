@@ -8,10 +8,10 @@ from app.services.rag_service import retrieve_context
 logger = get_logger(__name__)
 
 
-def generate_quiz(topic: str, user_id: str, n: int = 3) -> list[dict]:
+async def generate_quiz(topic: str, user_id: str, n: int = 3) -> list[dict]:
     logger.info("Generating quiz", extra={"topic": topic, "question_count": n})
     llm = get_llm()
-    sources = retrieve_context(topic, user_id=user_id, top_k=5)
+    sources = await retrieve_context(topic, user_id=user_id, top_k=5)
     source_text = "\n\n".join(s["chunk_text"] for s in sources)
     response = llm.invoke(
         [

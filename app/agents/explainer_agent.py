@@ -4,12 +4,12 @@ from app.services.memory_service import get_learner_context, store_correction
 from app.services.rag_service import retrieve_context
 
 
-def _generate_explanation(topics: list[str], user_id: str) -> dict:
+async def _generate_explanation(topics: list[str], user_id: str) -> dict:
     llm = get_llm()
     all_sources = []
     source_sections = []
     for topic in topics:
-        sources = retrieve_context(topic, user_id=user_id, top_k=5)
+        sources = await retrieve_context(topic, user_id=user_id, top_k=5)
         all_sources.extend(sources)
         section = "\n\n".join(
             f"[{s['paper_title']}]: {s['chunk_text']}" for s in sources
@@ -44,7 +44,7 @@ What I know about this learner:
     return {"explanation": response.content, "sources": all_sources}
 
 
-def _critique(explanation: str, sources: list[dict]) -> str:
+async def _critique(explanation: str, sources: list[dict]) -> str:
     llm = get_llm()
     source_text = "\n\n".join(s["chunk_text"] for s in sources)
     response = llm.invoke(
@@ -59,14 +59,14 @@ def _critique(explanation: str, sources: list[dict]) -> str:
     return response.content.strip()
 
 
-def explain_with_self_correction(
+async def explain_with_self_correction(
     topics: list[str], user_id: str, max_retries: int = 3
 ) -> dict:
     llm = get_llm()
-    result = _generate_explanation(topics, user_id)
+    result = await _generate_explanation(topics, user_id)
 
     for attempt in range(max_retries):
-        verdict = _critique(result["explanation"], result["sources"])
+        verdict = await _critique(result["explanation"], result["sources"])
         if verdict.upper().startswith("PASS"):
             return result
         response = llm.invoke(
@@ -80,7 +80,7 @@ def explain_with_self_correction(
         )
         result["explanation"] = response.content
 
-    final_verdict = _critique(result["explanation"], result["sources"])
+    final_verdict = await _critique(result["explanation"], result["sources"])
     if not final_verdict.upper().startswith("PASS"):
         print(f"⚠️ Still unresolved after {max_retries} revisions: {final_verdict}")
     return result

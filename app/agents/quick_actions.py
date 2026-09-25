@@ -26,7 +26,7 @@ async def continue_research(conversation_id: str, user_id: str) -> dict:
         "Continuing research",
         extra={"conversation_id": conversation_id, "topic": topic},
     )
-    result = research_with_agent(
+    result = await research_with_agent(
         f"{topic} (find additional or more recent sources beyond what's already covered)"
     )
     if result["papers"]:
@@ -56,7 +56,7 @@ async def quiz_on_context(conversation_id: str, user_id: str) -> dict:
     )
     all_questions = []
     for topic in topics:
-        all_questions.extend(generate_quiz(topic, user_id=user_id, n=2))
+        all_questions.extend(await generate_quiz(topic, user_id=user_id, n=2))
     combined_topic = ", ".join(topics)
     quiz_id = await create_quiz_session(
         combined_topic, user_id, all_questions, conversation_id=conversation_id
@@ -89,5 +89,5 @@ async def explain_related(conversation_id: str, user_id: str) -> dict:
         ]
     )
     new_topic = suggestion.content.strip()
-    result = explain_with_self_correction([new_topic], user_id=user_id)
+    result = await explain_with_self_correction([new_topic], user_id=user_id)
     return {"intent": "explain", "topic": new_topic, "response": result["explanation"]}

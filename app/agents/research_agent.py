@@ -108,7 +108,7 @@ def _invoke_with_retry(agent, topic: str, max_retries: int = 2):
     return None
 
 
-def research_with_agent(topic: str) -> dict:
+async def research_with_agent(topic: str) -> dict:
     """Tool-calling Research Agent, with a deterministic fallback to research_service.research_topic()
     when Groq's gpt-oss-120b tool-calling becomes unreliable (a known, documented issue)."""
     logger.info("Starting research with agent", extra={"topic": topic})
@@ -120,7 +120,7 @@ def research_with_agent(topic: str) -> dict:
         return {"papers": collected_papers, "summary": result["messages"][-1].content}
 
     logger.warning("Falling back to direct search", extra={"topic": topic})
-    papers = research_topic(topic)
+    papers = await research_topic(topic)
     summary = "\n".join(f"- {p.title} ({p.year}, {p.source})" for p in papers)
     return {
         "papers": papers,

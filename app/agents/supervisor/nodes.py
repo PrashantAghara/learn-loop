@@ -45,7 +45,7 @@ async def check_sources_node(state: LearnLoopState) -> LearnLoopState:
 async def research_agent_node(state: LearnLoopState) -> LearnLoopState:
     all_papers, summaries = [], []
     for topic in state["topics"]:
-        result = research_with_agent(topic)
+        result = await research_with_agent(topic)
         all_papers.extend(result["papers"])
         summaries.append(f"'{topic}': {result['summary']}")
     return {**state, "papers": all_papers, "agent_summary": "\n\n".join(summaries)}
@@ -81,7 +81,7 @@ async def format_research_response(state: LearnLoopState) -> LearnLoopState:
 
 
 async def explain_node(state: LearnLoopState) -> LearnLoopState:
-    result = explain_with_self_correction(state["topics"], user_id=state["user_id"])
+    result = await explain_with_self_correction(state["topics"], user_id=state["user_id"])
     image_path = await generate_diagram(", ".join(state["topics"]), result["explanation"])
     return {**state, "response": result["explanation"], "image_path": image_path}
 
@@ -89,7 +89,7 @@ async def explain_node(state: LearnLoopState) -> LearnLoopState:
 async def assess_node(state: LearnLoopState) -> LearnLoopState:
     all_questions = []
     for topic in state["topics"]:
-        all_questions.extend(generate_quiz(topic, user_id=state["user_id"]))
+        all_questions.extend(await generate_quiz(topic, user_id=state["user_id"]))
     quiz_id = await create_quiz_session(
         ", ".join(state["topics"]),
         state["user_id"],
