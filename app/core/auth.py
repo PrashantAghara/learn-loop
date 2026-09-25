@@ -3,7 +3,7 @@ import time
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import JWTError, jwk, jwt
 
 from app.core.config import get_settings
 from app.core.logging_config import get_logger
@@ -51,7 +51,7 @@ def _get_public_key(token: str, jwks: dict):
 
     for key in jwks.get("keys", []):
         if key.get("kid") == kid:
-            return jwt.algorithms.RSAAlgorithm.from_jwk(key)
+            return jwk.construct(key)
 
     raise ValueError(f"No matching key found for kid: {kid}")
 
@@ -66,7 +66,7 @@ async def verify_token(token: str) -> str:
         payload = jwt.decode(
             token,
             public_key,
-            algorithms=["RS256"],
+            algorithms=["RS256", "ES256"],
             audience="authenticated",
             issuer=f"{settings.supabase_url}/auth/v1",
         )
