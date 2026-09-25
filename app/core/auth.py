@@ -29,7 +29,10 @@ async def _fetch_jwks() -> dict:
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(jwks_url)
+            resp = await client.get(
+                jwks_url,
+                headers={"apikey": settings.supabase_publishable_key},
+            )
             resp.raise_for_status()
             _jwks_cache = resp.json()
             _jwks_cache_time = time.time()
