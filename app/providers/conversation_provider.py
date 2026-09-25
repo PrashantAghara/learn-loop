@@ -80,6 +80,12 @@ async def get_messages(conversation_id: str) -> list[dict]:
             "select role, content, metadata, created_at from chat_messages where conversation_id = $1 order by created_at asc",
             conversation_id,
         )
-        return [dict(row) for row in rows]
+        messages = []
+        for row in rows:
+            msg = dict(row)
+            if isinstance(msg.get("metadata"), str):
+                msg["metadata"] = json.loads(msg["metadata"])
+            messages.append(msg)
+        return messages
     finally:
         await release_connection(conn)
