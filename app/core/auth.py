@@ -1,10 +1,9 @@
 import time
-from functools import lru_cache
 
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 
 from app.core.config import get_settings
 from app.core.logging_config import get_logger
