@@ -1,7 +1,4 @@
-import os
-
 from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse
 
 from app.agents.explainer_agent import record_reaction
 from app.agents.supervisor.graph import get_supervisor
@@ -30,11 +27,7 @@ def send_message(payload: MessageRequest, user_id: str = Depends(get_current_use
             {"question": q["question"]} for q in session["questions"]
         ]  # expected_answer withheld
 
-    image_url = (
-        f"/learn/image/{os.path.basename(result['image_path'])}"
-        if result.get("image_path")
-        else None
-    )
+    image_url = result.get("image_path")
 
     logger.info(
         "Message processing complete",
@@ -72,5 +65,6 @@ def send_reaction(
 
 @router.get("/image/{filename}")
 def get_image_file(filename: str):
-    logger.debug("Serving image", extra={"filename": filename})  # noqa: G101
-    return FileResponse(f"images_out/{filename}", media_type="image/png")
+    logger.warning("Legacy image request - images now served from Supabase", extra={"filename": filename})
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail="Images now served from Supabase Storage. Use the image_path from the message response directly.")
