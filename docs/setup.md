@@ -130,6 +130,7 @@ docker run -p 8000:8000 --env-file .env learn-loop
 | `CORS error` | Add `http://localhost:5173` to `allow_origins` in `app/main.py` |
 | `WebSocket 403` | Token expired — re-login |
 | `Image 404` | Create `images` bucket in Supabase Storage, set Public |
+| `HF embedding 503` | Normal on cold start — retries with backoff (max 20s) in `embed_texts()` |
 
 ---
 
@@ -147,4 +148,4 @@ docker run -p 8000:8000 --env-file .env learn-loop
 - **Render**: Spins down after 15 min inactivity (cold start ~30s)
 - **Supabase**: 500MB DB, 1GB Storage, 2GB bandwidth/month
 - **Groq**: Rate limits on free tier
-- **HuggingFace**: Inference API rate limits
+- **HuggingFace**: Inference API rate limits + cold starts on embedding model

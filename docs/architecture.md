@@ -31,7 +31,7 @@ flowchart TD
 The central orchestrator. Key responsibilities:
 
 - **Intent classification** → `research` / `explain` / `assess`
-- **Topic extraction** — A compound question like *"explain X and compare it to Y"* produces two distinct topics, not one flattened string
+- **Topic extraction** — A compound question like *"explain X and compare it to Y"* produces two distinct topics, not one flattened string. Each topic flows through the graph independently (coverage check, research, explanation).
 - **RAG coverage check** — Per-topic check whether `paper_chunks` already has relevant embeddings
 - **Silent research** — If coverage is missing, auto-researches before handing off; user never sees "no data found"
 
@@ -59,12 +59,14 @@ A LangGraph tool-calling ReAct agent with **five structured tools**:
 2. **Critique** — Separate pass fact-checks against the same chunks
 3. **Revise** — Up to 3 iterations until critique says "PASS" or returns with explicit unresolved-issue warning
 
-Supports multi-topic with explicit comparison instruction.
+**Multi-topic support:** When multiple topics are present, the prompt includes an explicit comparison instruction. The Critique checks the *entire* response (including comparison) against sources.
+
+**Personalization:** Pulls learner context from mem0 before generating — gaps/mistakes from past quizzes are explicitly targeted.
 
 ### Assessment Agent (`app/agents/assessment_agent.py`)
 
-- Generates short-answer quiz questions from RAG chunks
-- Grades free-text answers via LLM-as-judge (not exact match)
+- Generates **short-answer** quiz questions (not recall/multiple-choice) from RAG chunks
+- Grades free-text answers via **LLM-as-judge** (not exact match)
 - Writes knowledge-gap summary to mem0
 - Quiz sessions persist to Postgres (survive restart/reload)
 

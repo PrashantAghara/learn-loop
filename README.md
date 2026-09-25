@@ -112,3 +112,16 @@ Two independent signals close the loop:
 2. **Quiz performance:** Wrong answers are summarized and stored as knowledge gaps tied to that topic.
 
 Both get retrieved and folded into the prompt the next time that topic (or a related one) comes up, and the Explainer explicitly targets those gaps rather than giving a generic overview.
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-topic queries** | "Explain X and compare to Y" → extracts both topics, handles independently |
+| **Auto-title generation** | First message → 5-word LLM summary for sidebar |
+| **Context-aware quiz** | "Quiz me on this conversation" spans all topics discussed, not just last message |
+| **Deterministic fallback** | Auto-research bypasses tool-calling when RAG has no coverage |
+| **Personalized explanations** | mem0 retrieves past gaps/corrections before every explanation |
+| **Diagram generation** | Explainer writes visual prompt → Pollinations → Supabase Storage → public URL |

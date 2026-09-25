@@ -9,7 +9,7 @@
 | **LLM** | `langchain-groq` → Groq `openai/gpt-oss-120b` | All reasoning, tool-calling |
 | **Database Pool** | `asyncpg` | Native async Postgres driver |
 | **Connection Pooling** | pgbouncer (transaction mode) | Supabase default; `statement_cache_size=0` |
-| **Vector Search** | `pgvector` + HNSW index | Cosine similarity, per-user |
+| **Vector Search** | `pgvector` + HNSW index | Cosine similarity, per-user, 384-dim |
 | **Personalization** | `mem0ai` (hosted) | Separate from RAG store |
 | **JWT Verification** | `python-jose` | Local JWKS/RS256/ES256, cached |
 | **HTTP Client** | `httpx` | All outbound calls |
@@ -33,7 +33,7 @@
 | Service | Purpose |
 |---------|---------|
 | **Supabase Postgres** | Primary DB (conversations, quizzes, RAG) |
-| **pgvector** | Vector similarity search |
+| **pgvector** | Vector similarity search (HNSW index) |
 | **Supabase Auth** | Google OAuth via PKCE |
 | **Supabase Storage** | Generated images (1GB free) |
 | **mem0 Cloud** | Personalization memory (independent) |
@@ -58,22 +58,66 @@
 | **Backend** | Render (Docker) | `Dockerfile` |
 | **Frontend** | Vercel | `vercel.json` |
 
+## Key Implementation Details
+
+### Multi-Topic Handling
+- Intent classifier extracts **all distinct topics** from a single query
+- Each topic flows independently through RAG coverage check, research, and explanation
+- Explainer receives explicit comparison instruction when >1 topic
+
+### Conversation Title Generation
+- First message → LLM summarizes into **5-word title** (no punctuation)
+- Stored in `conversations.title` for sidebar display
+
+### HF Embedding Cold-Start Handling
+- HuggingFace Inference API returns `503` with `estimated_time` on cold start
+- `embed_texts()` retries with exponential backoff (max 20s wait, 3 retries)
+- Avoids local `sentence-transformers` + PyTorch (would exceed Render 512MB limit)
+
+### Quiz Design
+- **Short-answer questions** testing understanding, not single-sentence recall
+- **LLM-as-judge grading** — evaluates semantic correctness, not exact match
+- Feedback: one specific sentence explaining the gap
+
+### Image Prompt Engineering
+- Dedicated prompt: "concise, vivid, under 50 words, visual metaphor only"
+- **No text/labels in prompt** — image models render text poorly
+- Explainer generates prompt → Pollinations returns bytes → Upload to Supabase Storage
+
+### Auto-Research Fallback
+- Deterministic: calls **all 5 sources** (arXiv, OpenAlex, Semantic Scholar, Wikipedia, Tavily)
+- Used when `explain`/`assess` hit topic with zero RAG coverage
+- Bypasses tool-calling reliability issues on `gpt-oss-120b`
+
+### Personalization (mem0)
+- Stores: user corrections (HITL) + quiz knowledge gaps
+- Retrieved before every explanation, folded into prompt
+- Explainer explicitly instructed to target stored gaps
+
+### Pgvector HNSW Index
+- `CREATE INDEX ... USING HNSW (embedding vector_cosine_ops)`
+- Cosine similarity via `1 - (embedding <=> query_embedding)`
+- Per-user scoping via `WHERE user_id = $1`
+
 ## Environment Variables
 
 ### Backend (`.env`)
 
 ```bash
-GROQ_API_KEY=...
+# Required
+GROQ_API_KEY=gsk_...
 OPENALEX_API_KEY=...
-SUPABASE_DB_URL=postgresql://...
+SUPABASE_DB_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 MEM0_API_KEY=m0-...
-TAVILY_API_KEY=tvly-...
+TAVILY_API_KEY=tvly-dev-...
 HF_TOKEN=hf_...
 SEMANTIC_SCHOLAR_API_KEY=s2k-...
-FRONTEND_URL=https://learn-loop-brown.vercel.app
-BACKEND_URL=https://learn-loop-api.onrender.com
+
+# Optional (defaults shown)
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:8000
 LOG_LEVEL=INFO
 ```
 
